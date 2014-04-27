@@ -1,0 +1,99 @@
+<!--
+
+    jadice barcode engine - a Java-based barcode decoding engine
+
+    Copyright (C) 1995-${year} levigo holding gmbh. All Rights Reserved.
+
+    This library is free software; you can redistribute it and/or modify it under the terms of the
+    GNU Lesser General Public License as published by the Free Software Foundation; either version
+    2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License along with this library;
+    if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+    02110-1301 USA
+
+    Contact: solutions@levigo.de
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.levigo.barcode</groupId>
+	<artifactId>build</artifactId>
+	<packaging>pom</packaging>
+	<version>2.0-SNAPSHOT</version>
+
+	<modules>
+		<module>engine</module>
+		<module>ui</module>
+	</modules>
+
+	<repositories>
+		<repository>
+			<id>levigo</id>
+			<url>https://maven2.levigo.de/repo/</url>
+			<name>levigo releases</name>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.5.1</version>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+					<debug>false</debug>
+					<optimize>true</optimize>
+				</configuration>
+			</plugin>
+			<plugin>
+				<inherited>false</inherited>
+				<groupId>com.mycila.maven-license-plugin</groupId>
+				<artifactId>maven-license-plugin</artifactId>
+				<version>1.9.0</version>
+				<configuration>
+					<header>${basedir}/support/LICENSE-HEADER.txt</header>
+					<failIfMissing>false</failIfMissing>
+					<aggregate>true</aggregate>
+					<useDefaultExcludes>false</useDefaultExcludes>
+
+					<excludes>
+						<!-- LibDMTX-port comes with its own header -->
+						<exclude>engine/src/main/java/com/jadice/barcode/twod/dmtx/**</exclude>
+						<exclude>engine/src/main/java/com/levigo/barcode/twod/dmtx/**</exclude>
+					</excludes>
+					<includes>
+						<include>**/*.xml</include>
+						<include>**/src/**/*.java</include>
+						<include>**/src/**/*.properties</include>
+					</includes>
+					<properties>
+						<year>${currentYear}</year>
+						<inceptionYear>1995</inceptionYear>
+					</properties>
+				</configuration>
+				<executions>
+					<execution>
+						<id>check-headers</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

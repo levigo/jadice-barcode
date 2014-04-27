@@ -1,0 +1,5 @@
+com.jadice.barcode.linear.c128.Code128
+com.jadice.barcode.linear.c39.Code39
+com.jadice.barcode.linear.ean.EAN
+com.jadice.barcode.linear.tofi.TwoOfFiveInterleaved
+com.jadice.barcode.twod.dmtx.Datamatrix
