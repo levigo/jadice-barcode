@@ -64,75 +64,7 @@ public class Region {
     DmtxEdgeTop, DmtxEdgeBottom, DmtxEdgeLeft, DmtxEdgeRight
   }
 
-  /**
-   * @struct DmtxFollow
-   * @brief DmtxFollow
-   */
-  private class Follow {
-    int step;
-    Point loc = new Point();
-
-    public Follow(Point loc) {
-      this.loc = loc.clone();
-      step = 0;
-    }
-
-    @Override
-    public Region.Follow clone() {
-      final Region.Follow f = new Follow(loc);
-      f.step = step;
-      f.loc = loc.clone();
-      return f;
-    }
-
-    /**
-     *
-     *
-     */
-    void followStep(int sign) {
-      assert Math.abs(sign) == 1;
-      assert dec.getFlagGrid().isAnySet(loc, 0x40);
-
-      final int factor = stepsTotal + 1;
-      int stepMod;
-      if (sign > 0)
-        stepMod = (factor + step % factor) % factor;
-      else
-        stepMod = (factor - step % factor) % factor;
-
-      /* End of positive trail -- magic jump */
-      if (sign > 0 && stepMod == positiveTrailLength)
-        loc.setTo(negativeTrailEnd);
-      else if (sign < 0 && stepMod == negativeTrailLength)
-        loc.setTo(positiveTrailEnd);
-      else {
-        final int flags = dec.getFlagGrid().get(loc);
-        final int patternIdx = sign < 0 ? flags & 0x07 : (flags & 0x38) >> 3;
-        loc.x += dmtxPatternX[patternIdx];
-        loc.y += dmtxPatternY[patternIdx];
-      }
-
-      step += sign;
-    }
-
-    /**
-     *
-     *
-     */
-    void followStep2(int sign) {
-      assert Math.abs(sign) == 1;
-      final FlagGrid flags = dec.getFlagGrid();
-      assert flags.isAnySet(loc, 0x40);
-
-      final int patternIdx = sign < 0 ? flags.get(loc) & 0x07 : (flags.get(loc) & 0x38) >> 3;
-      loc.x += dmtxPatternX[patternIdx];
-      loc.y += dmtxPatternY[patternIdx];
-
-      step += sign;
-    }
-  }
-
-  private class Line {
+  private static class Line {
     int angle;
     int hOffset;
     int mag;
@@ -170,14 +102,107 @@ public class Region {
     }
   }
 
-  public class PointFlow {
+  public static class PointFlow {
+    static PointFlow getPointFlow(Decode dec, int colorPlane, Point loc, Direction arrive) {
+      // Sample grid at pattern positions:
+      // 6 5 4
+      // 7 L 3
+      // 0 1 2
+      final int colorPattern[] = new int[8];
+      for (final Direction d : Direction.values()) {
+        try {
+          colorPattern[d.ordinal()] = dec.getPixelValue( //
+              loc.x + d.dx, //
+              loc.y + d.dy, //
+              colorPlane);
+        } catch (final OutOfRangeException e) {
+          return blankEdge;
+        }
+      }
+
+      // Calculate this pixel's flow intensity for each direction (-45, 0, 45, 90)
+      // @formatter:off
+      // Coefficients:
+      //         -2 -1  0     -1  0  1      0  1  2      1  2  1
+      //         -1  L  1     -2  L  2     -1  L  1      0  L  0
+      //          0  1  2     -1  0  1     -2 -1  0     -1 -2 -1
+      //
+      // Compass:    0            1            2            3
+      //
+      // 255 255 000
+      // 255  X  000
+      // 255 255 000
+      // 
+      // @formatter:on
+      Direction compassMax = null;
+      int magMax = Integer.MIN_VALUE;
+      for (int compass = 0; compass < 4; compass++) {
+        int mag = 0;
+
+        /* Add portion from each position in the convolution matrix pattern */
+        for (int patternIdx = 0; patternIdx < 8; patternIdx++) {
+          final Direction c = Direction.get(patternIdx - compass + 8);
+          if (c.coefficient != 0)
+            mag += colorPattern[patternIdx] * c.coefficient;
+        }
+
+        /* Identify strongest compass flow */
+        if (abs(mag) > abs(magMax)) {
+          compassMax = Direction.get(compass);
+          magMax = mag;
+        }
+      }
+
+      // @formatter:off
+      // Convert signed compass direction into unique flow directions:
+      // 5  3  2
+      // 6  X  1
+      // 7  8  0
+      // @formatter:on
+      final Direction depart = magMax > 0 ? compassMax.opposite() : compassMax;
+      return new PointFlow(dec, colorPlane, arrive, depart, abs(magMax), loc.clone());
+    }
+
+    static PointFlow detectEdge(Decode dec, Point loc) {
+      final int channelCount = 1; // FIXME dec.getImage().getChannelCount();
+
+      /* Find whether red, green, or blue shows the strongest edge */
+      PointFlow flow = blankEdge;
+      for (int channel = 0; channel < channelCount; channel++) {
+        final PointFlow f = getPointFlow(dec, channel, loc, Region.NEIGHTBOR_NONE);
+        if (f.magnitude > flow.magnitude)
+          flow = f;
+      }
+
+      if (flow.magnitude < 10)
+        return blankEdge;
+
+      final PointFlow flowPos = flow.findStrongestNeighbor(+1);
+      final PointFlow flowNeg = flow.findStrongestNeighbor(-1);
+      if (flowPos.magnitude != 0 && flowNeg.magnitude != 0) {
+        final PointFlow flowPosBack = flowPos.findStrongestNeighbor(-1);
+        final PointFlow flowNegBack = flowNeg.findStrongestNeighbor(+1);
+        if (flowPos.arrive == flowPosBack.arrive.opposite() && flowNeg.arrive == flowNegBack.arrive.opposite()) {
+          flow.arrive = Region.NEIGHTBOR_NONE;
+          Region.CALLBACK_POINT_PLOT(flow.position, 1, 1, 1);
+          return flow;
+        }
+      }
+
+      return blankEdge;
+    }
+
+    static final PointFlow blankEdge = new PointFlow(null, 0, null, null, Integer.MIN_VALUE, new Point());
+
     int colorPlane;
     Direction arrive;
     final Direction depart;
     final int magnitude;
     final Point position;
+    private final Decode dec;
 
-    public PointFlow(int colorPlane, Direction arrive, Direction depart, int mag, Point loc) {
+    public PointFlow(Decode dec, int colorPlane, Direction arrive, Direction depart, int mag, Point loc) {
+      this.dec = dec;
       this.colorPlane = colorPlane;
       this.arrive = arrive;
       this.depart = depart;
@@ -187,7 +212,7 @@ public class Region {
 
     @Override
     public PointFlow clone() {
-      return new PointFlow(colorPlane, arrive, depart, magnitude, position.clone());
+      return new PointFlow(dec, colorPlane, arrive, depart, magnitude, position.clone());
     }
 
     /**
@@ -219,7 +244,7 @@ public class Region {
         if (attemptDiff > 1)
           continue;
 
-        final PointFlow flow = getPointFlow(colorPlane, loc, direction);
+        final PointFlow flow = getPointFlow(dec, colorPlane, loc, direction);
 
         if (flow.magnitude > strongestFlow.magnitude || flow.magnitude == strongestFlow.magnitude
             && direction.isManhattan())
@@ -250,7 +275,7 @@ public class Region {
 
     try {
       /* Test for presence of any reasonable edge at this location */
-      final PointFlow flowBegin = reg.detectEdge(loc);
+      final PointFlow flowBegin = PointFlow.detectEdge(dec, loc);
       if (flowBegin.magnitude < (int) (dec.getEdgeThresh() * 7.65 + 0.5))
         return null;
 
@@ -297,21 +322,10 @@ public class Region {
     }
   }
 
-  /* Trail blazing values */
-  private int negativeTrailLength; /* */
-  private int positiveTrailLength; /* */
-  private int stepsTotal; /* */
-  private Point positiveTrailEnd; /* */
-  private Point negativeTrailEnd; /* */
-  private Point boundMin; /* */
-  private Point boundMax; /* */
-
   private PointFlow flowBegin; /* */
   /* Orientation values */
   private int polarity; /* */
-  @SuppressWarnings("unused")
   private int stepR;
-  @SuppressWarnings("unused")
   private int stepT;
   private Point locR; /* remove if stepR works above */
 
@@ -417,8 +431,7 @@ public class Region {
   }
 
   private final DiagnosticSettings diag;
-
-  final PointFlow blankEdge = new PointFlow(0, null, null, Integer.MIN_VALUE, new Point());
+  private Trail trail;
 
   public Region(Decode dec, DiagnosticSettings diag) {
     this.dec = dec;
@@ -569,519 +582,521 @@ public class Region {
     return oMsg;
   }
 
-  /**
-   *
-   *
-   */
-  private PointFlow detectEdge(Point loc) {
-    final int channelCount = 1; // FIXME dec.getImage().getChannelCount();
+  private static class Trail {
+    public class Follow {
+      int step;
+      Point loc = new Point();
 
-    /* Find whether red, green, or blue shows the strongest edge */
-    PointFlow flow = blankEdge;
-    for (int channel = 0; channel < channelCount; channel++) {
-      final PointFlow f = getPointFlow(channel, loc, Region.NEIGHTBOR_NONE);
-      if (f.magnitude > flow.magnitude)
-        flow = f;
-    }
+      public Follow(Point loc) {
+        this.loc = loc.clone();
+        step = 0;
+      }
 
-    if (flow.magnitude < 10)
-      return blankEdge;
+      @Override
+      public Follow clone() {
+        final Follow f = new Follow(loc);
+        f.step = step;
+        f.loc = loc.clone();
+        return f;
+      }
 
-    final PointFlow flowPos = flow.findStrongestNeighbor(+1);
-    final PointFlow flowNeg = flow.findStrongestNeighbor(-1);
-    if (flowPos.magnitude != 0 && flowNeg.magnitude != 0) {
-      final PointFlow flowPosBack = flowPos.findStrongestNeighbor(-1);
-      final PointFlow flowNegBack = flowNeg.findStrongestNeighbor(+1);
-      if (flowPos.arrive == flowPosBack.arrive.opposite() && flowNeg.arrive == flowNegBack.arrive.opposite()) {
-        flow.arrive = Region.NEIGHTBOR_NONE;
-        Region.CALLBACK_POINT_PLOT(flow.position, 1, 1, 1);
-        return flow;
+      /**
+       *
+       *
+       */
+      public void followStep(int sign) {
+        assert Math.abs(sign) == 1;
+        assert dec.getFlagGrid().isAnySet(loc, 0x40);
+
+        final int factor = getLength() + 1;
+        int stepMod;
+        if (sign > 0)
+          stepMod = (factor + step % factor) % factor;
+        else
+          stepMod = (factor - step % factor) % factor;
+
+        /* End of positive trail -- magic jump */
+        if (sign > 0 && stepMod == positiveTrailLength)
+          loc.setTo(negativeTrailEnd);
+        else if (sign < 0 && stepMod == negativeTrailLength)
+          loc.setTo(positiveTrailEnd);
+        else {
+          final int flags = dec.getFlagGrid().get(loc);
+          final int patternIdx = sign < 0 ? flags & 0x07 : (flags & 0x38) >> 3;
+          loc.x += dmtxPatternX[patternIdx];
+          loc.y += dmtxPatternY[patternIdx];
+        }
+
+        step += sign;
+      }
+
+      /**
+       *
+       *
+       */
+      public void followStep2(int sign) {
+        assert Math.abs(sign) == 1;
+        final FlagGrid flags = dec.getFlagGrid();
+        assert flags.isAnySet(loc, 0x40);
+
+        final int patternIdx = sign < 0 ? flags.get(loc) & 0x07 : (flags.get(loc) & 0x38) >> 3;
+        loc.x += dmtxPatternX[patternIdx];
+        loc.y += dmtxPatternY[patternIdx];
+
+        step += sign;
       }
     }
 
-    return blankEdge;
-  }
+    private final PointFlow start;
 
-  /**
+    private Point positiveTrailEnd;
+    private int positiveTrailLength;
+    private Point negativeTrailEnd;
+    private int negativeTrailLength;
+    private final int length;
+    private final Point boundMin;
+    private final Point boundMax;
+    private final Decode dec;
+
+    // vauuuddd
+    // --------
+    // 0x80 v = visited bit
+    // 0x40 a = assigned bit
+    // 0x38 u = 3 bits points upstream 0-7
+    // 0x07 d = 3 bits points downstream 0-7
+    Trail(Decode dec, PointFlow start, int maxDiagonal, DiagnosticSettings diag) {
+      this.dec = dec;
+      final Point boundMin = start.position.clone();
+      final Point boundMax = start.position.clone();
+
+      // Mark location as visited and assigned
+      dec.getFlagGrid().setTo(start.position, 0x80 | 0x40);
+
+      this.start = start;
+
+      int negAssigns = 0;
+      int posAssigns = 0;
+      for (int sign = 1; sign >= -1; sign -= 2) {
+        PointFlow flow = start;
+
+        int steps;
+        for (steps = 0;; steps++) {
+          if (maxDiagonal != LibDMTX.DmtxUndefined
+              && (boundMax.x - boundMin.x > maxDiagonal || boundMax.y - boundMin.y > maxDiagonal))
+            break;
+
+          /* Find the strongest eligible neighbor */
+          final PointFlow flowNext = flow.findStrongestNeighbor(sign);
+          if (flowNext.magnitude < 50)
+            break;
+
+          if (diag.isMarkupEnabled())
+            diag.addTransientPoint(sign > 0 ? Feature.START : Feature.STOP, flowNext.position.x, dec.yMax
+                - flowNext.position.y);
+
+          /* Get the neighbor's cache location */
+          assert !dec.getFlagGrid().isAnySet(flowNext.position, 0x80);
+
+          /*
+           * Mark departure from current location. If flowing downstream (sign < 0) then departure
+           * vector here is the arrival vector of the next location. Upstream flow uses the opposite
+           * rule.
+           */
+          dec.getFlagGrid().set(flow.position, sign < 0 ? flowNext.arrive.ordinal() : flowNext.arrive.ordinal() << 3);
+
+          /* Mark known direction for next location */
+          /*
+           * If testing downstream (sign < 0) then next upstream is opposite of next arrival
+           */
+          /*
+           * If testing upstream (sign > 0) then next downstream is opposite of next arrival
+           */
+          dec.getFlagGrid().setTo(flowNext.position,
+              sign < 0 ? flowNext.arrive.opposite().ordinal() << 3 : flowNext.arrive.opposite().ordinal());
+          dec.getFlagGrid().set(flowNext.position, 0x80 | 0x40); // Mark location
+
+          // as visited
+          // and assigned
+
+          if (sign > 0)
+            posAssigns++;
+          else
+            negAssigns++;
+          flow = flowNext;
+
+          if (flow.position.x > boundMax.x)
+            boundMax.x = flow.position.x;
+          else if (flow.position.x < boundMin.x)
+            boundMin.x = flow.position.x;
+          if (flow.position.y > boundMax.y)
+            boundMax.y = flow.position.y;
+          else if (flow.position.y < boundMin.y)
+            boundMin.y = flow.position.y;
+
+          /* CALLBACK_POINT_PLOT(flow.loc, (sign > 0) ? 2 : 3, 1, 2); */
+        }
+
+        if (sign > 0) {
+          this.positiveTrailEnd = flow.position.clone();
+          this.positiveTrailLength = steps;
+        } else {
+          this.negativeTrailEnd = flow.position.clone();
+          this.negativeTrailLength = steps;
+        }
+      }
+      this.length = negativeTrailLength + positiveTrailLength;
+      this.boundMin = boundMin;
+      this.boundMax = boundMax;
+
+      /* Clear "visited" bit from trail */
+      final int clears = clear(0x80);
+      assert posAssigns + negAssigns == clears - 1;
+    }
+
+    /**
+     * Start following at an offset of the start position of <code>seek</code> steps in positive or
+     * negative direction.
+     */
+    private Follow followSeek(int seek) {
+      final Follow follow = new Follow(start.position);
+
+      int sign = seek > 0 ? +1 : -1;
+      for (int i = 0; i != seek; i += sign) {
+        follow.followStep(sign);
+        assert abs(follow.step) <= length;
+      }
+
+      return follow;
+    }
+
+    /**
    *
    *
    */
-  private Line findBestSolidLine(int step0, int step1, int streamDir, int houghAvoid) {
-    final int hough[][] = new int[3][DMTX_HOUGH_RES];
-    int houghMin, houghMax;
-    final byte houghTest[] = new byte[DMTX_HOUGH_RES];
-    int i;
-    int step;
-    int sign = 0;
-    int tripSteps = 0;
-    int angleBest;
-    int hOffset, hOffsetBest;
-    int xDiff, yDiff;
-    int dH;
-    Region.Follow follow;
-    final Line line = new Line();
-    Point rHp;
+    private Follow followSeekLoc(Point loc) {
+      return new Follow(loc);
+    }
 
-    angleBest = 0;
-    hOffset = hOffsetBest = 0;
+    /**
+     *
+     *
+     */
+    private int clear(int clearMask) {
+      assert (clearMask | 0xff) == 0xff;
 
-    /* Always follow path flowing away from the trail start */
-    if (step0 != 0) {
-      if (step0 > 0) {
+      /* Clear "visited" bit from trail */
+      int clears = 0;
+      Follow follow = followSeek(0);
+      while (abs(follow.step) <= length) {
+        assert dec.getFlagGrid().isAnySet(follow.loc, clearMask);
+        dec.getFlagGrid().clear(follow.loc, clearMask);
+        follow.followStep(+1);
+        clears++;
+      }
+
+      return clears;
+    }
+
+    public int getLength() {
+      return length;
+    }
+
+    /**
+     *
+     *
+     */
+    private Line findBestSolidLine(int step0, int step1, int streamDir, int houghAvoid) {
+      int sign = 0;
+      int tripSteps = 0;
+      /* Always follow path flowing away from the trail start */
+      if (step0 != 0) {
+        if (step0 > 0) {
+          sign = +1;
+          tripSteps = (step1 - step0 + length) % length;
+        } else {
+          sign = -1;
+          tripSteps = (step0 - step1 + length) % length;
+        }
+        if (tripSteps == 0)
+          tripSteps = length;
+      } else if (step1 != 0) {
+        sign = step1 > 0 ? +1 : -1;
+        tripSteps = Math.abs(step1);
+      } else if (step1 == 0) {
         sign = +1;
-        tripSteps = (step1 - step0 + stepsTotal) % stepsTotal;
-      } else {
-        sign = -1;
-        tripSteps = (step0 - step1 + stepsTotal) % stepsTotal;
+        tripSteps = length;
       }
-      if (tripSteps == 0)
-        tripSteps = stepsTotal;
-    } else if (step1 != 0) {
-      sign = step1 > 0 ? +1 : -1;
-      tripSteps = Math.abs(step1);
-    } else if (step1 == 0) {
-      sign = +1;
-      tripSteps = stepsTotal;
-    }
-    assert sign == streamDir;
+      assert sign == streamDir;
 
-    follow = followSeek(step0);
-    rHp = follow.loc.clone();
+      int houghMin, houghMax;
+      final int hough[][] = new int[3][DMTX_HOUGH_RES];
+      final byte houghTest[] = new byte[DMTX_HOUGH_RES];
 
-    line.stepBeg = line.stepPos = line.stepNeg = step0;
-    line.locBeg = follow.loc.clone();
-    line.locPos = follow.loc.clone();
-    line.locNeg = follow.loc.clone();
-
-    /* Predetermine which angles to test */
-    for (i = 0; i < DMTX_HOUGH_RES; i++)
-      if (houghAvoid == LibDMTX.DmtxUndefined)
-        houghTest[i] = 1;
-      else {
-        houghMin = (houghAvoid + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES;
-        houghMax = (houghAvoid - DMTX_HOUGH_RES / 6 + DMTX_HOUGH_RES) % DMTX_HOUGH_RES;
-        if (houghMin > houghMax)
-          houghTest[i] = (byte) (i > houghMin || i < houghMax ? 1 : 0);
-        else
-          houghTest[i] = (byte) (i > houghMin && i < houghMax ? 1 : 0);
-      }
-
-    /* Test each angle for steps along path */
-    for (step = 0; step < tripSteps; step++) {
-
-      xDiff = follow.loc.x - rHp.x;
-      yDiff = follow.loc.y - rHp.y;
-
-      /* Increment Hough accumulator */
-      for (i = 0; i < DMTX_HOUGH_RES; i++) {
-
-        if (houghTest[i] == 0)
-          continue;
-
-        dH = rHvX[i] * yDiff - rHvY[i] * xDiff;
-        if (dH >= -384 && dH <= 384) {
-
-          if (dH > 128)
-            hOffset = 2;
-          else if (dH >= -128)
-            hOffset = 1;
+      /* Predetermine which angles to test */
+      for (int i = 0; i < DMTX_HOUGH_RES; i++)
+        if (houghAvoid == LibDMTX.DmtxUndefined)
+          houghTest[i] = 1;
+        else {
+          houghMin = (houghAvoid + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES;
+          houghMax = (houghAvoid - DMTX_HOUGH_RES / 6 + DMTX_HOUGH_RES) % DMTX_HOUGH_RES;
+          if (houghMin > houghMax)
+            houghTest[i] = (byte) (i > houghMin || i < houghMax ? 1 : 0);
           else
-            hOffset = 0;
+            houghTest[i] = (byte) (i > houghMin && i < houghMax ? 1 : 0);
+        }
 
-          hough[hOffset][i]++;
+      int hOffsetBest = 0;
+      int angleBest = 0;
 
-          /* New angle takes over lead */
-          if (hough[hOffset][i] > hough[hOffsetBest][angleBest]) {
-            angleBest = i;
-            hOffsetBest = hOffset;
+      Follow follow = followSeek(step0);
+      final Point rHp = follow.loc.clone();
+
+      final Line line = new Line();
+      line.stepBeg = line.stepPos = line.stepNeg = step0;
+      line.locBeg = follow.loc.clone();
+      line.locPos = follow.loc.clone();
+      line.locNeg = follow.loc.clone();
+
+      /* Test each angle for steps along path */
+      for (int step = 0; step < tripSteps; step++) {
+        int dx = follow.loc.x - rHp.x;
+        int dy = follow.loc.y - rHp.y;
+
+        /* Increment Hough accumulator */
+        for (int i = 0; i < DMTX_HOUGH_RES; i++) {
+          if (houghTest[i] == 0)
+            continue;
+
+          int dH = rHvX[i] * dy - rHvY[i] * dx;
+          if (dH >= -384 && dH <= 384) {
+            int hOffset;
+            if (dH > 128)
+              hOffset = 2;
+            else if (dH >= -128)
+              hOffset = 1;
+            else
+              hOffset = 0;
+
+            hough[hOffset][i]++;
+
+            /* New angle takes over lead */
+            if (hough[hOffset][i] > hough[hOffsetBest][angleBest]) {
+              angleBest = i;
+              hOffsetBest = hOffset;
+            }
           }
         }
+
+        /* CALLBACK_POINT_PLOT(follow.loc, (sign > 1) ? 4 : 3, 1, 2); */
+
+        follow.followStep(sign);
       }
 
-      /* CALLBACK_POINT_PLOT(follow.loc, (sign > 1) ? 4 : 3, 1, 2); */
+      line.angle = angleBest;
+      line.hOffset = hOffsetBest;
+      line.mag = hough[hOffsetBest][angleBest];
 
-      follow.followStep(sign);
+      return line;
     }
 
-    line.angle = angleBest;
-    line.hOffset = hOffsetBest;
-    line.mag = hough[hOffsetBest][angleBest];
+    /**
+     *
+     *
+     */
+    private Line findBestSolidLine2(Point loc0, int tripSteps, int sign, int houghAvoid) {
+      final int hough[][] = new int[3][DMTX_HOUGH_RES];
+      int houghMin, houghMax;
+      final byte houghTest[] = new byte[DMTX_HOUGH_RES];
+      int i;
+      int step;
+      int angleBest;
+      int hOffset, hOffsetBest;
+      int xDiff, yDiff;
+      int dH;
+      new Ray2();
+      final Line line = new Line();
+      Point rHp;
 
-    return line;
-  }
+      angleBest = 0;
+      hOffset = hOffsetBest = 0;
 
-  /**
-   *
-   *
-   */
-  private Line findBestSolidLine2(Point loc0, int tripSteps, int sign, int houghAvoid) {
-    final int hough[][] = new int[3][DMTX_HOUGH_RES];
-    int houghMin, houghMax;
-    final byte houghTest[] = new byte[DMTX_HOUGH_RES];
-    int i;
-    int step;
-    int angleBest;
-    int hOffset, hOffsetBest;
-    int xDiff, yDiff;
-    int dH;
-    new Ray2();
-    final Line line = new Line();
-    Point rHp;
-    Region.Follow follow;
+      Follow follow = followSeekLoc(loc0);
+      rHp = line.locBeg = line.locPos = line.locNeg = follow.loc.clone();
+      line.stepBeg = line.stepPos = line.stepNeg = 0;
 
-    angleBest = 0;
-    hOffset = hOffsetBest = 0;
-
-    follow = followSeekLoc(loc0);
-    rHp = line.locBeg = line.locPos = line.locNeg = follow.loc.clone();
-    line.stepBeg = line.stepPos = line.stepNeg = 0;
-
-    /* Predetermine which angles to test */
-    for (i = 0; i < DMTX_HOUGH_RES; i++)
-      if (houghAvoid == LibDMTX.DmtxUndefined)
-        houghTest[i] = 1;
-      else {
-        houghMin = (houghAvoid + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES;
-        houghMax = (houghAvoid - DMTX_HOUGH_RES / 6 + DMTX_HOUGH_RES) % DMTX_HOUGH_RES;
-        if (houghMin > houghMax)
-          houghTest[i] = (byte) (i > houghMin || i < houghMax ? 1 : 0);
-        else
-          houghTest[i] = (byte) (i > houghMin && i < houghMax ? 1 : 0);
-      }
-
-    /* Test each angle for steps along path */
-    for (step = 0; step < tripSteps; step++) {
-
-      xDiff = follow.loc.x - rHp.x;
-      yDiff = follow.loc.y - rHp.y;
-
-      /* Increment Hough accumulator */
-      for (i = 0; i < DMTX_HOUGH_RES; i++) {
-
-        if (houghTest[i] == 0)
-          continue;
-
-        dH = rHvX[i] * yDiff - rHvY[i] * xDiff;
-        if (dH >= -384 && dH <= 384) {
-          if (dH > 128)
-            hOffset = 2;
-          else if (dH >= -128)
-            hOffset = 1;
+      /* Predetermine which angles to test */
+      for (i = 0; i < DMTX_HOUGH_RES; i++)
+        if (houghAvoid == LibDMTX.DmtxUndefined)
+          houghTest[i] = 1;
+        else {
+          houghMin = (houghAvoid + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES;
+          houghMax = (houghAvoid - DMTX_HOUGH_RES / 6 + DMTX_HOUGH_RES) % DMTX_HOUGH_RES;
+          if (houghMin > houghMax)
+            houghTest[i] = (byte) (i > houghMin || i < houghMax ? 1 : 0);
           else
-            hOffset = 0;
+            houghTest[i] = (byte) (i > houghMin && i < houghMax ? 1 : 0);
+        }
 
-          hough[hOffset][i]++;
+      /* Test each angle for steps along path */
+      for (step = 0; step < tripSteps; step++) {
 
-          /* New angle takes over lead */
-          if (hough[hOffset][i] > hough[hOffsetBest][angleBest]) {
-            angleBest = i;
-            hOffsetBest = hOffset;
+        xDiff = follow.loc.x - rHp.x;
+        yDiff = follow.loc.y - rHp.y;
+
+        /* Increment Hough accumulator */
+        for (i = 0; i < DMTX_HOUGH_RES; i++) {
+
+          if (houghTest[i] == 0)
+            continue;
+
+          dH = rHvX[i] * yDiff - rHvY[i] * xDiff;
+          if (dH >= -384 && dH <= 384) {
+            if (dH > 128)
+              hOffset = 2;
+            else if (dH >= -128)
+              hOffset = 1;
+            else
+              hOffset = 0;
+
+            hough[hOffset][i]++;
+
+            /* New angle takes over lead */
+            if (hough[hOffset][i] > hough[hOffsetBest][angleBest]) {
+              angleBest = i;
+              hOffsetBest = hOffset;
+            }
           }
         }
+
+        /* CALLBACK_POINT_PLOT(follow.loc, (sign > 1) ? 4 : 3, 1, 2); */
+
+        follow.followStep2(sign);
       }
 
-      /* CALLBACK_POINT_PLOT(follow.loc, (sign > 1) ? 4 : 3, 1, 2); */
+      line.angle = angleBest;
+      line.hOffset = hOffsetBest;
+      line.mag = hough[hOffsetBest][angleBest];
 
-      follow.followStep2(sign);
+      return line;
     }
 
-    line.angle = angleBest;
-    line.hOffset = hOffsetBest;
-    line.mag = hough[hOffsetBest][angleBest];
+    /**
+     *
+     *
+     */
+    private void findTravelLimits(Line line) {
+      int i;
+      long distSq;
+      long distSqMax;
+      int xDiff, yDiff;
+      boolean posRunning, negRunning;
+      int posTravel, negTravel;
+      int posWander, posWanderMin, posWanderMax, posWanderMinLock, posWanderMaxLock;
+      int negWander, negWanderMin, negWanderMax, negWanderMinLock, negWanderMaxLock;
 
-    return line;
-  }
+      /* line.stepBeg is already known to sit on the best Hough line */
+      final Follow followNeg = followSeek(line.stepBeg);
+      final Follow followPos = followNeg.clone();
+      final Point loc0 = followPos.loc.clone();
 
-  /**
-   *
-   *
-   */
-  private void findTravelLimits(Line line) {
-    int i;
-    long distSq;
-    long distSqMax;
-    int xDiff, yDiff;
-    boolean posRunning, negRunning;
-    int posTravel, negTravel;
-    int posWander, posWanderMin, posWanderMax, posWanderMinLock, posWanderMaxLock;
-    int negWander, negWanderMin, negWanderMax, negWanderMinLock, negWanderMaxLock;
+      final int cosAngle = rHvX[line.angle];
+      final int sinAngle = rHvY[line.angle];
 
-    /* line.stepBeg is already known to sit on the best Hough line */
-    final Follow followNeg = followSeek(line.stepBeg);
-    final Follow followPos = followNeg.clone();
-    final Point loc0 = followPos.loc.clone();
+      distSqMax = 0;
+      Point negMax = followPos.loc.clone();
+      Point posMax = followPos.loc.clone();
 
-    final int cosAngle = rHvX[line.angle];
-    final int sinAngle = rHvY[line.angle];
+      posTravel = negTravel = 0;
+      posWander = posWanderMin = posWanderMax = posWanderMinLock = posWanderMaxLock = 0;
+      negWander = negWanderMin = negWanderMax = negWanderMinLock = negWanderMaxLock = 0;
 
-    distSqMax = 0;
-    Point negMax = followPos.loc.clone();
-    Point posMax = followPos.loc.clone();
+      for (i = 0; i < length / 2; i++) {
 
-    posTravel = negTravel = 0;
-    posWander = posWanderMin = posWanderMax = posWanderMinLock = posWanderMaxLock = 0;
-    negWander = negWanderMin = negWanderMax = negWanderMinLock = negWanderMaxLock = 0;
+        posRunning = i < 10 || abs(posWander) < abs(posTravel);
+        negRunning = i < 10 || abs(negWander) < abs(negTravel);
 
-    for (i = 0; i < stepsTotal / 2; i++) {
+        if (posRunning) {
+          xDiff = followPos.loc.x - loc0.x;
+          yDiff = followPos.loc.y - loc0.y;
+          posTravel = cosAngle * xDiff + sinAngle * yDiff;
+          posWander = cosAngle * yDiff - sinAngle * xDiff;
 
-      posRunning = i < 10 || abs(posWander) < abs(posTravel);
-      negRunning = i < 10 || abs(negWander) < abs(negTravel);
-
-      if (posRunning) {
-        xDiff = followPos.loc.x - loc0.x;
-        yDiff = followPos.loc.y - loc0.y;
-        posTravel = cosAngle * xDiff + sinAngle * yDiff;
-        posWander = cosAngle * yDiff - sinAngle * xDiff;
-
-        if (posWander >= -3 * 256 && posWander <= 3 * 256) {
-          distSq = followPos.loc.distanceSquared(negMax);
-          if (distSq > distSqMax) {
-            posMax = followPos.loc.clone();
-            distSqMax = distSq;
-            line.stepPos = followPos.step;
-            line.locPos = followPos.loc.clone();
-            posWanderMinLock = posWanderMin;
-            posWanderMaxLock = posWanderMax;
+          if (posWander >= -3 * 256 && posWander <= 3 * 256) {
+            distSq = followPos.loc.distanceSquared(negMax);
+            if (distSq > distSqMax) {
+              posMax = followPos.loc.clone();
+              distSqMax = distSq;
+              line.stepPos = followPos.step;
+              line.locPos = followPos.loc.clone();
+              posWanderMinLock = posWanderMin;
+              posWanderMaxLock = posWanderMax;
+            }
+          } else {
+            posWanderMin = min(posWanderMin, posWander);
+            posWanderMax = max(posWanderMax, posWander);
           }
-        } else {
-          posWanderMin = min(posWanderMin, posWander);
-          posWanderMax = max(posWanderMax, posWander);
-        }
-      } else if (!negRunning)
-        break;
+        } else if (!negRunning)
+          break;
 
-      if (negRunning) {
-        xDiff = followNeg.loc.x - loc0.x;
-        yDiff = followNeg.loc.y - loc0.y;
-        negTravel = cosAngle * xDiff + sinAngle * yDiff;
-        negWander = cosAngle * yDiff - sinAngle * xDiff;
+        if (negRunning) {
+          xDiff = followNeg.loc.x - loc0.x;
+          yDiff = followNeg.loc.y - loc0.y;
+          negTravel = cosAngle * xDiff + sinAngle * yDiff;
+          negWander = cosAngle * yDiff - sinAngle * xDiff;
 
-        if (negWander >= -3 * 256 && negWander < 3 * 256) {
-          distSq = followNeg.loc.distanceSquared(posMax);
-          if (distSq > distSqMax) {
-            negMax = followNeg.loc.clone();
-            distSqMax = distSq;
-            line.stepNeg = followNeg.step;
-            line.locNeg = followNeg.loc.clone();
-            negWanderMinLock = negWanderMin;
-            negWanderMaxLock = negWanderMax;
+          if (negWander >= -3 * 256 && negWander < 3 * 256) {
+            distSq = followNeg.loc.distanceSquared(posMax);
+            if (distSq > distSqMax) {
+              negMax = followNeg.loc.clone();
+              distSqMax = distSq;
+              line.stepNeg = followNeg.step;
+              line.locNeg = followNeg.loc.clone();
+              negWanderMinLock = negWanderMin;
+              negWanderMaxLock = negWanderMax;
+            }
+          } else {
+            negWanderMin = min(negWanderMin, negWander);
+            negWanderMax = max(negWanderMax, negWander);
           }
-        } else {
-          negWanderMin = min(negWanderMin, negWander);
-          negWanderMax = max(negWanderMax, negWander);
-        }
-      } else if (!posRunning)
-        break;
+        } else if (!posRunning)
+          break;
+
+        /*
+         * CALLBACK_POINT_PLOT(followPos.loc, 2, 1, 2); CALLBACK_POINT_PLOT(followNeg.loc, 4, 1, 2);
+         */
+
+        followPos.followStep(+1);
+        followNeg.followStep(-1);
+      }
+      line.devn = max(posWanderMaxLock - posWanderMinLock, negWanderMaxLock - negWanderMinLock) / 256;
+      line.distSq = distSqMax;
 
       /*
-       * CALLBACK_POINT_PLOT(followPos.loc, 2, 1, 2); CALLBACK_POINT_PLOT(followNeg.loc, 4, 1, 2);
+       * CALLBACK_POINT_PLOT(posMax, 2, 1, 1); CALLBACK_POINT_PLOT(negMax, 2, 1, 1);
        */
-
-      followPos.followStep(+1);
-      followNeg.followStep(-1);
-    }
-    line.devn = max(posWanderMaxLock - posWanderMinLock, negWanderMaxLock - negWanderMinLock) / 256;
-    line.distSq = distSqMax;
-
-    /*
-     * CALLBACK_POINT_PLOT(posMax, 2, 1, 1); CALLBACK_POINT_PLOT(negMax, 2, 1, 1);
-     */
-  }
-
-  // vauuuddd
-  // --------
-  // 0x80 v = visited bit
-  // 0x40 a = assigned bit
-  // 0x38 u = 3 bits points upstream 0-7
-  // 0x07 d = 3 bits points downstream 0-7
-  private boolean followEdge(PointFlow flowBegin, int maxDiagonal) {
-    final Point boundMin = flowBegin.position.clone();
-    final Point boundMax = flowBegin.position.clone();
-
-    // Mark location as visited and assigned
-    dec.getFlagGrid().setTo(flowBegin.position, 0x80 | 0x40);
-
-    this.flowBegin = flowBegin;
-
-    int negAssigns = 0;
-    int posAssigns = 0;
-    for (int sign = 1; sign >= -1; sign -= 2) {
-      PointFlow flow = flowBegin;
-
-      int steps;
-      for (steps = 0;; steps++) {
-        if (maxDiagonal != LibDMTX.DmtxUndefined
-            && (boundMax.x - boundMin.x > maxDiagonal || boundMax.y - boundMin.y > maxDiagonal))
-          break;
-
-        /* Find the strongest eligible neighbor */
-        final PointFlow flowNext = flow.findStrongestNeighbor(sign);
-        if (flowNext.magnitude < 50)
-          break;
-
-        if (diag.isMarkupEnabled())
-          diag.addTransientPoint(sign > 0 ? Feature.START : Feature.STOP, flowNext.position.x, dec.yMax
-              - flowNext.position.y);
-
-        /* Get the neighbor's cache location */
-        assert !dec.getFlagGrid().isAnySet(flowNext.position, 0x80);
-
-        /*
-         * Mark departure from current location. If flowing downstream (sign < 0) then departure
-         * vector here is the arrival vector of the next location. Upstream flow uses the opposite
-         * rule.
-         */
-        dec.getFlagGrid().set(flow.position, sign < 0 ? flowNext.arrive.ordinal() : flowNext.arrive.ordinal() << 3);
-
-        /* Mark known direction for next location */
-        /*
-         * If testing downstream (sign < 0) then next upstream is opposite of next arrival
-         */
-        /*
-         * If testing upstream (sign > 0) then next downstream is opposite of next arrival
-         */
-        dec.getFlagGrid().setTo(flowNext.position,
-            sign < 0 ? flowNext.arrive.opposite().ordinal() << 3 : flowNext.arrive.opposite().ordinal());
-        dec.getFlagGrid().set(flowNext.position, 0x80 | 0x40); // Mark location
-
-        // as visited
-        // and assigned
-
-        if (sign > 0)
-          posAssigns++;
-        else
-          negAssigns++;
-        flow = flowNext;
-
-        if (flow.position.x > boundMax.x)
-          boundMax.x = flow.position.x;
-        else if (flow.position.x < boundMin.x)
-          boundMin.x = flow.position.x;
-        if (flow.position.y > boundMax.y)
-          boundMax.y = flow.position.y;
-        else if (flow.position.y < boundMin.y)
-          boundMin.y = flow.position.y;
-
-        /* CALLBACK_POINT_PLOT(flow.loc, (sign > 0) ? 2 : 3, 1, 2); */
-      }
-
-      if (sign > 0) {
-        positiveTrailEnd = flow.position.clone();
-        positiveTrailLength = steps;
-      } else {
-        negativeTrailEnd = flow.position.clone();
-        negativeTrailLength = steps;
-      }
-    }
-    stepsTotal = negativeTrailLength + positiveTrailLength;
-    this.boundMin = boundMin;
-    this.boundMax = boundMax;
-
-    /* Clear "visited" bit from trail */
-    final int clears = TrailClear(0x80);
-    assert posAssigns + negAssigns == clears - 1;
-
-    /* XXX clean this up ... redundant test above */
-    if (maxDiagonal != LibDMTX.DmtxUndefined
-        && (boundMax.x - boundMin.x > maxDiagonal || boundMax.y - boundMin.y > maxDiagonal))
-      return false;
-
-    return true;
-  }
-
-  /**
-   *
-   *
-   */
-  private Region.Follow followSeek(int seek) {
-    int i;
-    int sign;
-    final Region.Follow follow = new Follow(flowBegin.position);
-
-    sign = seek > 0 ? +1 : -1;
-    for (i = 0; i != seek; i += sign) {
-      follow.followStep(sign);
-      assert abs(follow.step) <= stepsTotal;
     }
 
-    return follow;
-  }
+    public int largestExtent() {
+      return Math.max(boundMax.x - boundMin.x, boundMax.y - boundMin.y);
+    }
 
-  /**
-   *
-   *
-   */
-  private Follow followSeekLoc(Point loc) {
-    return new Follow(loc);
+    public int area() {
+      return (boundMax.x - boundMin.x) * (boundMax.y - boundMin.y);
+    }
+
+    @Override
+    public String toString() {
+      return "Trail [start=" + start + ", positiveTrailEnd=" + positiveTrailEnd + ", positiveTrailLength="
+          + positiveTrailLength + ", negativeTrailEnd=" + negativeTrailEnd + ", negativeTrailLength="
+          + negativeTrailLength + ", length=" + length + ", boundMin=" + boundMin + ", boundMax=" + boundMax + ", dec="
+          + dec + "]";
+    }
   }
 
   double getBottomAngle() {
     return bottomAngle;
   }
 
-  /**
-   *
-   *
-   */
-  PointFlow getPointFlow(int colorPlane, Point loc, Direction arrive) {
-    // Sample grid at pattern positions:
-    // 6 5 4
-    // 7 L 3
-    // 0 1 2
-    final int colorPattern[] = new int[8];
-    for (final Direction d : Direction.values()) {
-      try {
-        colorPattern[d.ordinal()] = dec.getPixelValue( //
-            loc.x + d.dx, //
-            loc.y + d.dy, //
-            colorPlane);
-      } catch (final OutOfRangeException e) {
-        return blankEdge;
-      }
-    }
-
-    // Calculate this pixel's flow intensity for each direction (-45, 0, 45, 90)
-    // @formatter:off
-    // Coefficients:
-    //         -2 -1  0     -1  0  1      0  1  2      1  2  1
-    //         -1  L  1     -2  L  2     -1  L  1      0  L  0
-    //          0  1  2     -1  0  1     -2 -1  0     -1 -2 -1
-    //
-    // Compass:    0            1            2            3
-    //
-    // 255 255 000
-    // 255  X  000
-    // 255 255 000
-    // 
-    // @formatter:on
-    Direction compassMax = null;
-    int magMax = Integer.MIN_VALUE;
-    for (int compass = 0; compass < 4; compass++) {
-      int mag = 0;
-
-      /* Add portion from each position in the convolution matrix pattern */
-      for (int patternIdx = 0; patternIdx < 8; patternIdx++) {
-        final Direction c = Direction.get(patternIdx - compass + 8);
-        if (c.coefficient != 0)
-          mag += colorPattern[patternIdx] * c.coefficient;
-      }
-
-      /* Identify strongest compass flow */
-      if (abs(mag) > abs(magMax)) {
-        compassMax = Direction.get(compass);
-        magMax = mag;
-      }
-    }
-
-    // @formatter:off
-    // Convert signed compass direction into unique flow directions:
-    // 5  3  2
-    // 6  X  1
-    // 7  8  0
-    // @formatter:on
-    final Direction depart = magMax > 0 ? compassMax.opposite() : compassMax;
-    return new PointFlow(colorPlane, arrive, depart, abs(magMax), loc.clone());
-  }
 
   Shape getShape() {
     // merge this code with the one from decodeMatrixRegion?
@@ -1126,7 +1141,7 @@ public class Region {
     Point loc0;
     final Point loc1 = new Point(), locOrigin = new Point();
     BresenhamLine line;
-    Region.Follow follow;
+    Trail.Follow follow;
     Line bestLine;
 
     /* Determine pixel coordinates of origin */
@@ -1151,14 +1166,14 @@ public class Region {
     if (edgeLoc == Edge.DmtxEdgeTop) {
       streamDir = polarity * -1;
       avoidAngle = leftLine.angle;
-      follow = followSeekLoc(locT);
+      follow = trail.followSeekLoc(locT);
       pTmp.x = 0.8;
       pTmp.y = symbolShape == SymbolSize.RectAuto ? 0.2 : 0.6;
     } else {
       assert edgeLoc == Edge.DmtxEdgeRight;
       streamDir = polarity;
       avoidAngle = bottomLine.angle;
-      follow = followSeekLoc(locR);
+      follow = trail.followSeekLoc(locR);
       pTmp.x = symbolShape == SymbolSize.SquareAuto ? 0.7 : 0.9;
       pTmp.y = 0.8;
     }
@@ -1171,7 +1186,7 @@ public class Region {
     line = new BresenhamLine(loc0, loc1, locOrigin);
     steps = trailBlazeGapped(line.clone(), streamDir);
 
-    bestLine = findBestSolidLine2(loc0, steps, streamDir, avoidAngle);
+    bestLine = trail.findBestSolidLine2(loc0, steps, streamDir, avoidAngle);
     if (bestLine.mag < 5)
       ;
 
@@ -1338,9 +1353,12 @@ public class Region {
     } else
       maxDiagonal = LibDMTX.DmtxUndefined;
 
-    /* Follow to end in both directions */
-    if (!followEdge(begin, maxDiagonal) || stepsTotal < 40) {
-      TrailClear(0x40);
+    flowBegin = begin.clone();
+    trail = new Trail(dec, begin, maxDiagonal, diag);
+
+    /* XXX clean this up ... redundant test above */
+    if ((maxDiagonal != LibDMTX.DmtxUndefined && trail.largestExtent() > maxDiagonal) || trail.getLength() < 40) {
+      trail.clear(0x40);
       return false;
     }
 
@@ -1354,30 +1372,30 @@ public class Region {
       else
         minArea = 2 * dec.getEdgeMin() * dec.getEdgeMin() / (scale * scale);
 
-      if ((boundMax.x - boundMin.x) * (boundMax.y - boundMin.y) < minArea) {
-        TrailClear(0x40);
+      if (trail.area() < minArea) {
+        trail.clear(0x40);
         return false;
       }
     }
 
-    final Line line1x = findBestSolidLine(0, 0, +1, LibDMTX.DmtxUndefined);
+    final Line line1x = trail.findBestSolidLine(0, 0, +1, LibDMTX.DmtxUndefined);
     if (line1x.mag < 5) {
-      TrailClear(0x40);
+      trail.clear(0x40);
       return false;
     }
 
-    findTravelLimits(line1x);
+    trail.findTravelLimits(line1x);
     if (line1x.distSq < 100 || line1x.devn * 10 >= Math.sqrt(line1x.distSq)) {
-      TrailClear(0x40);
+      trail.clear(0x40);
       return false;
     }
     assert line1x.stepPos >= line1x.stepNeg;
 
-    Follow fTmp = followSeek(line1x.stepPos + 5);
-    final Line line2p = findBestSolidLine(fTmp.step, line1x.stepNeg, +1, line1x.angle);
+    Trail.Follow fTmp = trail.followSeek(line1x.stepPos + 5);
+    final Line line2p = trail.findBestSolidLine(fTmp.step, line1x.stepNeg, +1, line1x.angle);
 
-    fTmp = followSeek(line1x.stepNeg - 5);
-    final Line line2n = findBestSolidLine(fTmp.step, line1x.stepPos, -1, line1x.angle);
+    fTmp = trail.followSeek(line1x.stepNeg - 5);
+    final Line line2n = trail.findBestSolidLine(fTmp.step, line1x.stepPos, -1, line1x.angle);
     if (max(line2p.mag, line2n.mag) < 5)
       return false;
 
@@ -1385,7 +1403,7 @@ public class Region {
     int cross;
     if (line2p.mag > line2n.mag) {
       line2x = line2p;
-      findTravelLimits(line2x);
+      trail.findTravelLimits(line2x);
       if (line2x.distSq < 100 || line2x.devn * 10 >= Math.sqrt(line2x.distSq))
         return false;
 
@@ -1420,7 +1438,7 @@ public class Region {
       }
     } else {
       line2x = line2n;
-      findTravelLimits(line2x);
+      trail.findTravelLimits(line2x);
       if (line2x.distSq < 100 || line2x.devn / Math.sqrt(line2x.distSq) >= 0.1)
         return false;
 
@@ -1673,7 +1691,7 @@ public class Region {
     };
 
     final Point loc0 = line.loc.clone();
-    PointFlow flow = getPointFlow(flowBegin.colorPlane, loc0, NEIGHTBOR_NONE);
+    PointFlow flow = PointFlow.getPointFlow(dec, flowBegin.colorPlane, loc0, NEIGHTBOR_NONE);
     final int distSqMax = line.xDelta * line.xDelta + line.yDelta * line.yDelta;
     int steps = 0;
     boolean onEdge = true;
@@ -1702,7 +1720,7 @@ public class Region {
 
       if (onEdge == false) {
         line.step(1, 0);
-        flow = getPointFlow(flowBegin.colorPlane, line.loc, NEIGHTBOR_NONE);
+        flow = PointFlow.getPointFlow(dec, flowBegin.colorPlane, line.loc, NEIGHTBOR_NONE);
         if (flow.magnitude > 50)
           onEdge = true;
       }
@@ -1739,29 +1757,6 @@ public class Region {
     } while (distSq < distSqMax);
 
     return steps;
-  }
-
-  /**
-   *
-   *
-   */
-  private int TrailClear(int clearMask) {
-    int clears;
-    Region.Follow follow;
-
-    assert (clearMask | 0xff) == 0xff;
-
-    /* Clear "visited" bit from trail */
-    clears = 0;
-    follow = followSeek(0);
-    while (abs(follow.step) <= stepsTotal) {
-      assert dec.getFlagGrid().isAnySet(follow.loc, clearMask);
-      dec.getFlagGrid().clear(follow.loc, clearMask);
-      follow.followStep(+1);
-      clears++;
-    }
-
-    return clears;
   }
 
   /**
@@ -1960,15 +1955,12 @@ public class Region {
 
   @Override
   public String toString() {
-    return "Region [jumpToPos=" + negativeTrailLength + ", jumpToNeg=" + positiveTrailLength + ", stepsTotal="
-        + stepsTotal + ", finalPos=" + positiveTrailEnd + ", finalNeg=" + negativeTrailEnd + ", boundMin=" + boundMin
-        + ", boundMax=" + boundMax + ", flowBegin=" + flowBegin + ", polarity=" + polarity + ", stepR=" + stepR
-        + ", stepT=" + stepT + ", locR=" + locR + ", locT=" + locT + ", leftKnown=" + leftKnown + ", leftAngle="
-        + leftAngle + ", leftLoc=" + leftLoc + ", leftLine=" + leftLine + ", bottomKnown=" + bottomKnown
-        + ", bottomAngle=" + bottomAngle + ", bottomLoc=" + bottomLoc + ", bottomLine=" + bottomLine + ", topKnown="
-        + topKnown + ", topAngle=" + topAngle + ", topLoc=" + topLoc + ", rightKnown=" + rightKnown + ", rightAngle="
-        + rightAngle + ", rightLoc=" + rightLoc + ", onColor=" + onColor + ", offColor=" + offColor + ", symbolSize="
-        + symbolSize + ", raw2fit=" + raw2fit + ", fit2raw=" + fit2raw + ", dec=" + dec + ", diag=" + diag
-        + ", blankEdge=" + blankEdge + "]";
+    return "Region [flowBegin=" + flowBegin + ", polarity=" + polarity + ", stepR=" + stepR + ", stepT=" + stepT
+        + ", locR=" + locR + ", locT=" + locT + ", leftKnown=" + leftKnown + ", leftAngle=" + leftAngle + ", leftLoc="
+        + leftLoc + ", leftLine=" + leftLine + ", bottomKnown=" + bottomKnown + ", bottomAngle=" + bottomAngle
+        + ", bottomLoc=" + bottomLoc + ", bottomLine=" + bottomLine + ", topKnown=" + topKnown + ", topAngle="
+        + topAngle + ", topLoc=" + topLoc + ", rightKnown=" + rightKnown + ", rightAngle=" + rightAngle + ", rightLoc="
+        + rightLoc + ", onColor=" + onColor + ", offColor=" + offColor + ", symbolSize=" + symbolSize + ", raw2fit="
+        + raw2fit + ", fit2raw=" + fit2raw + ", trail=" + trail + "]";
   }
 }
