@@ -27,9 +27,25 @@ public class Region {
     int step;
     PixelLocation loc = new PixelLocation();
 
+    public Follow(PixelLocation loc) {
+      this.loc = loc.clone();
+      step = 0;
+      ptr = dec.getCache(loc);
+      assert ptr != null;
+      neighbor = ptr;
+    }
+
+    public Follow(int x, int y) {
+      this.loc = new PixelLocation(x, y);
+      step = 0;
+      ptr = dec.getCache(loc);
+      assert ptr != null;
+      neighbor = ptr;
+    }
+
     @Override
     public Region.Follow clone() {
-      final Region.Follow f = new Follow();
+      final Region.Follow f = new Follow(loc);
       f.ptr = ptr;
       f.neighbor = neighbor;
       f.step = step;
@@ -41,16 +57,12 @@ public class Region {
      *
      *
      */
-    Region.Follow followStep(int sign) {
-      int patternIdx;
-      int stepMod;
-      int factor;
-      final Region.Follow follow = new Follow();
-
+    void followStep(int sign) {
       assert Math.abs(sign) == 1;
       assert this.neighbor.isAnySet(0x40);
 
-      factor = stepsTotal + 1;
+      int factor = stepsTotal + 1;
+      int stepMod;
       if (sign > 0)
         stepMod = (factor + this.step % factor) % factor;
       else
@@ -58,44 +70,37 @@ public class Region {
 
       /* End of positive trail -- magic jump */
       if (sign > 0 && stepMod == jumpToNeg)
-        follow.loc = finalNeg.clone();
+        loc.setTo(finalNeg);
       else if (sign < 0 && stepMod == jumpToPos)
-        follow.loc = finalPos.clone();
+        loc.setTo(finalPos);
       else {
-        patternIdx = sign < 0 ? this.neighbor.get() & 0x07 : (this.neighbor.get() & 0x38) >> 3;
-        follow.loc.x = this.loc.x + dmtxPatternX[patternIdx];
-        follow.loc.y = this.loc.y + dmtxPatternY[patternIdx];
+        int patternIdx = sign < 0 ? this.neighbor.get() & 0x07 : (this.neighbor.get() & 0x38) >> 3;
+        this.loc.x += dmtxPatternX[patternIdx];
+        this.loc.y += dmtxPatternY[patternIdx];
       }
 
-      follow.step = this.step + sign;
-      follow.ptr = dec.getCache(follow.loc);
-      assert follow.ptr != null;
-      follow.neighbor = follow.ptr;
-
-      return follow;
+      step += sign;
+      ptr = dec.getCache(loc);
+      assert ptr != null;
+      neighbor = ptr;
     }
 
     /**
      *
      *
      */
-    Region.Follow followStep2(int sign) {
-      int patternIdx;
-      final Region.Follow follow = new Follow();
-
+    void followStep2(int sign) {
       assert Math.abs(sign) == 1;
       assert this.neighbor.isAnySet(0x40);
 
-      patternIdx = sign < 0 ? this.neighbor.get() & 0x07 : (this.neighbor.get() & 0x38) >> 3;
-      follow.loc.x = this.loc.x + dmtxPatternX[patternIdx];
-      follow.loc.y = this.loc.y + dmtxPatternY[patternIdx];
+      int patternIdx = sign < 0 ? this.neighbor.get() & 0x07 : (this.neighbor.get() & 0x38) >> 3;
+      this.loc.x += dmtxPatternX[patternIdx];
+      this.loc.y += dmtxPatternY[patternIdx];
 
-      follow.step = this.step + sign;
-      follow.ptr = dec.getCache(follow.loc);
-      assert follow.ptr != null;
-      follow.neighbor = follow.ptr;
-
-      return follow;
+      step += sign;
+      ptr = dec.getCache(loc);
+      assert ptr != null;
+      neighbor = ptr;
     }
   }
 
@@ -1093,16 +1098,11 @@ public class Region {
   private Region.Follow followSeek(int seek) {
     int i;
     int sign;
-    Region.Follow follow = new Follow();
-
-    follow.loc = this.flowBegin.loc.clone();
-    follow.step = 0;
-    follow.ptr = dec.getCache(follow.loc);
-    follow.neighbor = follow.ptr;
+    Region.Follow follow = new Follow(this.flowBegin.loc);
 
     sign = seek > 0 ? +1 : -1;
     for (i = 0; i != seek; i += sign) {
-      follow = follow.followStep(sign);
+      follow.followStep(sign);
       assert follow.ptr != null;
       assert abs(follow.step) <= this.stepsTotal;
     }
@@ -1114,16 +1114,8 @@ public class Region {
    *
    *
    */
-  private Region.Follow followSeekLoc(PixelLocation loc) {
-    final Region.Follow follow = new Follow();
-
-    follow.loc = loc.clone();
-    follow.step = 0;
-    follow.ptr = dec.getCache(follow.loc);
-    assert follow.ptr != null;
-    follow.neighbor = follow.ptr;
-
-    return follow;
+  private Follow followSeekLoc(PixelLocation loc) {
+    return new Follow(loc);
   }
 
   // vauuuddd
@@ -1348,7 +1340,7 @@ public class Region {
     while (abs(follow.step) <= this.stepsTotal) {
       assert follow.ptr.isAnySet(clearMask);
       follow.ptr.clear(clearMask);
-      follow = follow.followStep(+1);
+      follow.followStep(+1);
       clears++;
     }
 
@@ -1453,7 +1445,7 @@ public class Region {
 
       /* CALLBACK_POINT_PLOT(follow.loc, (sign > 1) ? 4 : 3, 1, 2); */
 
-      follow = follow.followStep(sign);
+      follow.followStep(sign);
     }
 
     line.angle = angleBest;
@@ -1486,7 +1478,7 @@ public class Region {
     hOffset = hOffsetBest = 0;
 
     follow = followSeekLoc(loc0);
-    rHp = line.locBeg = line.locPos = line.locNeg = follow.loc;
+    rHp = line.locBeg = line.locPos = line.locNeg = follow.loc.clone();
     line.stepBeg = line.stepPos = line.stepNeg = 0;
 
     /* Predetermine which angles to test */
@@ -1535,7 +1527,7 @@ public class Region {
 
       /* CALLBACK_POINT_PLOT(follow.loc, (sign > 1) ? 4 : 3, 1, 2); */
 
-      follow = follow.followStep2(sign);
+      follow.followStep2(sign);
     }
 
     line.angle = angleBest;
@@ -1589,7 +1581,7 @@ public class Region {
         if (posWander >= -3 * 256 && posWander <= 3 * 256) {
           distSq = followPos.loc.distanceSquared(negMax);
           if (distSq > distSqMax) {
-            posMax = followPos.loc;
+            posMax = followPos.loc.clone();
             distSqMax = distSq;
             line.stepPos = followPos.step;
             line.locPos = followPos.loc.clone();
@@ -1612,7 +1604,7 @@ public class Region {
         if (negWander >= -3 * 256 && negWander < 3 * 256) {
           distSq = followNeg.loc.distanceSquared(posMax);
           if (distSq > distSqMax) {
-            negMax = followNeg.loc;
+            negMax = followNeg.loc.clone();
             distSqMax = distSq;
             line.stepNeg = followNeg.step;
             line.locNeg = followNeg.loc.clone();
@@ -1630,8 +1622,8 @@ public class Region {
        * CALLBACK_POINT_PLOT(followPos.loc, 2, 1, 2); CALLBACK_POINT_PLOT(followNeg.loc, 4, 1, 2);
        */
 
-      followPos = followPos.followStep(+1);
-      followNeg = followNeg.followStep(-1);
+      followPos.followStep(+1);
+      followNeg.followStep(-1);
     }
     line.devn = max(posWanderMaxLock - posWanderMinLock, negWanderMaxLock - negWanderMinLock) / 256;
     line.distSq = distSqMax;

@@ -16,6 +16,11 @@ public class PixelLocation {
     y = loc.y;
   }
 
+  public PixelLocation(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
   @Override
   public PixelLocation clone() {
     return new PixelLocation(this);
@@ -34,5 +39,10 @@ public class PixelLocation {
   @Override
   public String toString() {
     return "(" + x + "," + y + ")";
+  }
+
+  public void setTo(PixelLocation l) {
+    this.x = l.x;
+    this.y = l.y;
   }
 }
