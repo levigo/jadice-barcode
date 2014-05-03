@@ -38,8 +38,8 @@ public enum SymbolSize {
   SymbolSize(int symbolRows, int symbolCols, int regionRows, int regionCols, int horizDataRegions, int vertDataRegions,
       int mappingMatrixRows, int mappingMatrixCols, int interleavedBlocks, int blockErrorWords,
       int blockMaxCorrectable, int symbolDataWords, int symbolErrorWords, int symbolMaxCorrectable) {
-    this.symbolRows = symbolRows;
-    this.symbolCols = symbolCols;
+    this.rows = symbolRows;
+    this.columns = symbolCols;
     this.regionRows = regionRows;
     this.regionCols = regionCols;
     this.horizDataRegions = horizDataRegions;
@@ -54,8 +54,8 @@ public enum SymbolSize {
     this.symbolMaxCorrectable = symbolMaxCorrectable;
   }
 
-  public final int symbolRows;
-  public final int symbolCols;
+  public final int rows;
+  public final int columns;
   public final int regionRows;
   public final int regionCols;
   public final int horizDataRegions;

@@ -47,7 +47,7 @@ public class PlaceMod {
 
     dataRegionRows = sizeIdx.regionRows;
     dataRegionCols = sizeIdx.regionCols;
-    symbolRows = sizeIdx.symbolRows;
+    symbolRows = sizeIdx.rows;
     mappingCols = sizeIdx.mappingMatrixCols;
 
     symbolRowReverse = symbolRows - symbolRow - 1;

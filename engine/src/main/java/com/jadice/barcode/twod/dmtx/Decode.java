@@ -3,6 +3,7 @@ package com.jadice.barcode.twod.dmtx;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
+import com.jadice.barcode.DiagnosticSettings;
 import com.jadice.barcode.Options;
 import com.jadice.barcode.grid.Grid;
 
@@ -282,8 +283,13 @@ public class Decode {
   public Region findNextRegion() {
     final Point loc = new Point();
 
+    DiagnosticSettings diag = options.getOptions(DiagnosticSettings.class);
+
     /* Continue until we find a region or run out of chances */
     for (;;) {
+      if (diag.isMarkupEnabled())
+        diag.getTransientMarkers().clear();
+
       if (!scanStrategy.getNextScanLocation(loc))
         break;
 
