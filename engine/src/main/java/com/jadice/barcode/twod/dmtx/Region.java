@@ -66,7 +66,7 @@ public class Region {
   }
 
   private static class Line {
-    int angle;
+    float angle;
     int hOffset;
     int mag;
     int stepBeg;
@@ -331,21 +331,21 @@ public class Region {
 
   /* Region fitting values */
   private boolean leftKnown;
-  private int leftAngle; // hough angle of left edge
+  private float leftAngle; // hough angle of left edge
   private Point leftLoc; // arbitrary point on left edge
   private Line leftLine;
 
   private boolean bottomKnown;
-  private int bottomAngle; // hough angle of bottom edge
+  private float bottomAngle; // hough angle of bottom edge
   private Point bottomLoc; // arbitrary point on bottom edge
 
   private Line bottomLine;
   private boolean topKnown;
-  private int topAngle; /* hough angle of top edge */
+  private float topAngle; /* hough angle of top edge */
   private Point topLoc; /* known (arbitrary) location on top edge */
 
   private boolean rightKnown;
-  private int rightAngle; /* hough angle of right edge */
+  private float rightAngle; /* hough angle of right edge */
   private Point rightLoc; /* known (arbitrary) location on right edge */
 
   /* Region calibration values */
@@ -580,7 +580,7 @@ public class Region {
     return oMsg;
   }
 
-  private static class Trail {
+  class Trail {
     public class Follow {
       int step;
       Point loc = new Point();
@@ -751,7 +751,7 @@ public class Region {
      * Start following at an offset of the start position of <code>seek</code> steps in positive or
      * negative direction.
      */
-    private Follow followSeek(int seek) {
+    Follow followSeek(int seek) {
       final Follow follow = new Follow(start.position);
 
       int sign = seek > 0 ? +1 : -1;
@@ -767,7 +767,7 @@ public class Region {
    *
    *
    */
-    private Follow followSeekLoc(Point loc) {
+    Follow followSeekLoc(Point loc) {
       return new Follow(loc);
     }
 
@@ -775,7 +775,7 @@ public class Region {
      *
      *
      */
-    private int clear(int clearMask) {
+    int clear(int clearMask) {
       assert (clearMask | 0xff) == 0xff;
 
       /* Clear "visited" bit from trail */
@@ -799,7 +799,7 @@ public class Region {
      *
      *
      */
-    private Line findBestSolidLine(int step0, int step1, int streamDir, int houghAvoid) {
+    Line findBestSolidLine(int step0, int step1, int streamDir, int houghAvoid) {
       int sign = 0;
       int tripSteps = 0;
       /* Always follow path flowing away from the trail start */
@@ -822,8 +822,14 @@ public class Region {
       }
       assert sign == streamDir;
 
+      int maxExtent = Math.max(boundMax.x - boundMin.x, boundMax.y - boundMin.y);
+
+      int numHSlots = 16;
+      int hMax = maxExtent * 256;
+      int divider = hMax / numHSlots;
+
       int houghMin, houghMax;
-      final int hough[][] = new int[3][DMTX_HOUGH_RES];
+      final int hough[][] = new int[numHSlots * 2][DMTX_HOUGH_RES];
       final boolean houghTest[] = new boolean[DMTX_HOUGH_RES];
 
       /* Predetermine which angles to test */
@@ -843,7 +849,6 @@ public class Region {
       int angleBest = 0;
 
       Follow follow = followSeek(step0);
-      final Point startPoint = follow.loc.clone();
 
       final Line line = new Line();
       line.stepBeg = line.stepPos = line.stepNeg = step0;
@@ -852,10 +857,9 @@ public class Region {
       line.locNeg = follow.loc.clone();
 
       /* Test each angle for steps along path */
-      int hOffsetOutOfRange = 0;
       for (int step = 0; step < tripSteps; step++) {
-        int dx = follow.loc.x - startPoint.x;
-        int dy = follow.loc.y - startPoint.y;
+        int dx = follow.loc.x - boundMin.x;
+        int dy = follow.loc.y - boundMin.y;
 
         /* Increment Hough accumulator */
         for (int i = 0; i < DMTX_HOUGH_RES; i++) {
@@ -863,24 +867,16 @@ public class Region {
             continue;
 
           int dH = rHvX[i] * dy - rHvY[i] * dx;
-          if (dH >= -384 && dH <= 384) {
-            int hOffset;
-            if (dH > 128)
-              hOffset = 2;
-            else if (dH >= -128)
-              hOffset = 1;
-            else
-              hOffset = 0;
-
-            hough[hOffset][i]++;
+          int slot = dH / divider + numHSlots;
+          if (slot >= 0 && slot < hough.length) {
+            hough[slot][i]++;
 
             /* New angle takes over lead */
-            if (hough[hOffset][i] > hough[hOffsetBest][angleBest]) {
+            if (hough[slot][i] > hough[hOffsetBest][angleBest]) {
               angleBest = i;
-              hOffsetBest = hOffset;
+              hOffsetBest = slot;
             }
-          } else
-            hOffsetOutOfRange++;
+          }
         }
 
         /* CALLBACK_POINT_PLOT(follow.loc, (sign > 1) ? 4 : 3, 1, 2); */
@@ -888,14 +884,8 @@ public class Region {
         follow.followStep(sign);
       }
 
-
-      System.out.println("Hough: outOfRange=" + hOffsetOutOfRange);
-      for (int h[] : hough) {
-        System.out.println(Arrays.toString(h));
-      }
-
       line.angle = angleBest;
-      line.hOffset = hOffsetBest;
+      line.hOffset = hOffsetBest * divider;
       line.mag = hough[hOffsetBest][angleBest];
 
       return line;
@@ -905,7 +895,7 @@ public class Region {
      *
      *
      */
-    private Line findBestSolidLine2(Point loc0, int tripSteps, int sign, int houghAvoid) {
+    Line findBestSolidLine2(Point loc0, int tripSteps, int sign, float avoidAngle) {
       final int hough[][] = new int[3][DMTX_HOUGH_RES];
       int houghMin, houghMax;
       final byte houghTest[] = new byte[DMTX_HOUGH_RES];
@@ -928,11 +918,11 @@ public class Region {
 
       /* Predetermine which angles to test */
       for (i = 0; i < DMTX_HOUGH_RES; i++)
-        if (houghAvoid == LibDMTX.DmtxUndefined)
+        if (avoidAngle == LibDMTX.DmtxUndefined)
           houghTest[i] = 1;
         else {
-          houghMin = (houghAvoid + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES;
-          houghMax = (houghAvoid - DMTX_HOUGH_RES / 6 + DMTX_HOUGH_RES) % DMTX_HOUGH_RES;
+          houghMin = (int) ((avoidAngle + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES);
+          houghMax = (int) ((avoidAngle - DMTX_HOUGH_RES / 6 + DMTX_HOUGH_RES) % DMTX_HOUGH_RES);
           if (houghMin > houghMax)
             houghTest[i] = (byte) (i > houghMin || i < houghMax ? 1 : 0);
           else
@@ -982,42 +972,71 @@ public class Region {
       return line;
     }
 
-    private void findTravelLimits(Line line) {
+    private void optimizeAngle(Line line) {
+      final float cosAngle = (float) Math.cos(line.angle * Math.PI / 180);
+      final float sinAngle = (float) Math.sin(line.angle * Math.PI / 180);
+
+      Point p0 = line.locBeg;
+      Follow follow = followSeekLoc(line.locNeg);
+
+      int xySum = 0;
+      int xSquaredSum = 0;
+      while (!follow.loc.equals(line.locPos)) {
+        int dx = follow.loc.x - p0.x;
+        int dy = follow.loc.y - p0.y;
+
+        float deviation = cosAngle * dx + sinAngle * dy;
+        float travel = cosAngle * dx - sinAngle * dy;
+
+        xySum += deviation * travel;
+        xSquaredSum += deviation * deviation;
+
+        followSeek(1);
+      }
+
+      float slopeMismatch = (float) xySum / (float) xSquaredSum;
+      float angularMismatch = (float) (Math.atan(slopeMismatch) * 180 / Math.PI);
+
+      line.angle += angularMismatch;
+    }
+
+    void findTravelLimits(Line line, float deviationTolerance) {
       /* line.stepBeg is already known to sit on the best Hough line */
       final Follow followNeg = followSeek(line.stepBeg);
       final Follow followPos = followNeg.clone();
       final Point loc0 = followPos.loc.clone();
 
-      final int cosAngle = rHvX[line.angle];
-      final int sinAngle = rHvY[line.angle];
+      final float cosAngle = (float) Math.cos(line.angle * Math.PI / 180);
+      final float sinAngle = (float) Math.sin(line.angle * Math.PI / 180);
 
       long distSqMax = 0;
       Point negMax = followPos.loc.clone();
       Point posMax = followPos.loc.clone();
 
-      int negTravel = 0;
-      int posTravel = 0;
+      float negTravel = 0;
+      float posTravel = 0;
 
-      int posWander, posWanderMin, posWanderMax, posWanderMinLock, posWanderMaxLock;
+      float posWander, posWanderMin, posWanderMax, posWanderMinLock, posWanderMaxLock;
       posWander = posWanderMin = posWanderMax = posWanderMinLock = posWanderMaxLock = 0;
-      int negWander, negWanderMin, negWanderMax, negWanderMinLock, negWanderMaxLock;
+      float negWander, negWanderMin, negWanderMax, negWanderMinLock, negWanderMaxLock;
       negWander = negWanderMin = negWanderMax = negWanderMinLock = negWanderMaxLock = 0;
 
       for (int i = 0; i < length / 2; i++) {
         boolean posRunning = i < 10 || abs(posWander) < abs(posTravel);
         boolean negRunning = i < 10 || abs(negWander) < abs(negTravel);
 
-        int xDiff;
-        int yDiff;
-        long distSq;
         if (posRunning) {
-          xDiff = followPos.loc.x - loc0.x;
-          yDiff = followPos.loc.y - loc0.y;
+          int xDiff = followPos.loc.x - loc0.x;
+          int yDiff = followPos.loc.y - loc0.y;
+          // travel parallel to the presumed line
           posTravel = cosAngle * xDiff + sinAngle * yDiff;
+
+          // deviation normal to the presumed line
           posWander = cosAngle * yDiff - sinAngle * xDiff;
 
-          if (posWander >= -3 * 256 && posWander <= 3 * 256) {
-            distSq = followPos.loc.distanceSquared(negMax);
+          System.out.println("Pos travel: " + posTravel + ", wander: " + posWander);
+          if (abs(posWander) <= deviationTolerance) {
+            long distSq = followPos.loc.distanceSquared(negMax);
             if (distSq > distSqMax) {
               posMax = followPos.loc.clone();
               distSqMax = distSq;
@@ -1026,21 +1045,24 @@ public class Region {
               posWanderMinLock = posWanderMin;
               posWanderMaxLock = posWanderMax;
             }
+            diag.addTransientPoint(Feature.START_EDGE, followPos.loc.x, dec.yMax - followPos.loc.y);
           } else {
             posWanderMin = min(posWanderMin, posWander);
             posWanderMax = max(posWanderMax, posWander);
+            diag.addTransientPoint(Feature.INVALID_EDGE, followPos.loc.x, dec.yMax - followPos.loc.y);
           }
         } else if (!negRunning)
           break;
 
         if (negRunning) {
-          xDiff = followNeg.loc.x - loc0.x;
-          yDiff = followNeg.loc.y - loc0.y;
+          int xDiff = followNeg.loc.x - loc0.x;
+          int yDiff = followNeg.loc.y - loc0.y;
           negTravel = cosAngle * xDiff + sinAngle * yDiff;
           negWander = cosAngle * yDiff - sinAngle * xDiff;
 
-          if (negWander >= -3 * 256 && negWander < 3 * 256) {
-            distSq = followNeg.loc.distanceSquared(posMax);
+          System.out.println("Neg travel: " + negTravel + ", wander: " + negWander);
+          if (abs(negWander) <= deviationTolerance) {
+            long distSq = followNeg.loc.distanceSquared(posMax);
             if (distSq > distSqMax) {
               negMax = followNeg.loc.clone();
               distSqMax = distSq;
@@ -1049,9 +1071,11 @@ public class Region {
               negWanderMinLock = negWanderMin;
               negWanderMaxLock = negWanderMax;
             }
+            diag.addTransientPoint(Feature.STOP_EDGE, followNeg.loc.x, dec.yMax - followNeg.loc.y);
           } else {
             negWanderMin = min(negWanderMin, negWander);
             negWanderMax = max(negWanderMax, negWander);
+            diag.addTransientPoint(Feature.INVALID_EDGE, followNeg.loc.x, dec.yMax - followNeg.loc.y);
           }
         } else if (!posRunning)
           break;
@@ -1085,6 +1109,11 @@ public class Region {
           + positiveTrailLength + ", negativeTrailEnd=" + negativeTrailEnd + ", negativeTrailLength="
           + negativeTrailLength + ", length=" + length + ", boundMin=" + boundMin + ", boundMax=" + boundMax + ", dec="
           + dec + "]";
+    }
+
+    public Line findBestSolidLine(int step, int stepNeg, int streamDir, float angle) {
+      // TODO Auto-generated method stub
+      return null;
     }
   }
 
@@ -1131,7 +1160,7 @@ public class Region {
   private void matrixRegionAlignCalibEdge(Region.Edge edgeLoc) {
     int streamDir;
     int steps;
-    int avoidAngle;
+    float avoidAngle;
     SymbolSize symbolShape;
     Point loc0;
     final Point loc1 = new Point(), locOrigin = new Point();
@@ -1382,9 +1411,24 @@ public class Region {
       return false;
     }
 
+    if (diag.isMarkupEnabled())
+      diag.addTransientPoint(Feature.SCAN, line1x.locBeg.x, dec.yMax - line1x.locBeg.y);
+
     System.out.println("line1x initial: " + line1x);
 
-    trail.findTravelLimits(line1x);
+    if (diag.isMarkupEnabled()) {
+      diag.getTransientMarkers().clear();
+      diag.addTransientPoint(Feature.DETECTION_SCAN, begin.position.x, dec.yMax - begin.position.y);
+
+      int px = line1x.locBeg.x;
+      int py = line1x.locBeg.y;
+      float sin = (float) Math.sin(line1x.angle * Math.PI / 180);
+      float cos = (float) Math.cos(line1x.angle * Math.PI / 180);
+      diag.addTransientLine(Feature.START_EDGE, px + cos * dec.xMax, dec.yMax - (py + sin * dec.yMax), px - cos
+          * dec.xMax, dec.yMax - (py - sin * dec.yMax));
+    }
+
+    trail.findTravelLimits(line1x, 4f);
     if (line1x.distSq < 100 || line1x.devn * 10 >= Math.sqrt(line1x.distSq)) {
       trail.clear(0x40);
       return false;
@@ -1392,12 +1436,42 @@ public class Region {
     assert line1x.stepPos >= line1x.stepNeg;
 
     System.out.println("line1x updated: " + line1x);
+    if (diag.isMarkupEnabled())
+      diag.addTransientLine(Feature.START_EDGE, line1x.locNeg.x, dec.yMax - line1x.locNeg.y, line1x.locPos.x, dec.yMax
+          - line1x.locPos.y);
 
-    Trail.Follow fTmp = trail.followSeek(line1x.stepPos + 5);
-    final Line line2p = trail.findBestSolidLine(fTmp.step, line1x.stepNeg, +1, line1x.angle);
+    trail.optimizeAngle(line1x);
+    trail.findTravelLimits(line1x, 2);
 
-    fTmp = trail.followSeek(line1x.stepNeg - 5);
-    final Line line2n = trail.findBestSolidLine(fTmp.step, line1x.stepPos, -1, line1x.angle);
+    System.out.println("line1x updated: " + line1x);
+    if (diag.isMarkupEnabled())
+      diag.addTransientLine(Feature.START_EDGE, line1x.locNeg.x, dec.yMax - line1x.locNeg.y, line1x.locPos.x, dec.yMax
+          - line1x.locPos.y);
+
+    trail.optimizeAngle(line1x);
+    trail.findTravelLimits(line1x, 1.5f);
+
+    System.out.println("line1x updated: " + line1x);
+    if (diag.isMarkupEnabled())
+      diag.addTransientLine(Feature.START_EDGE, line1x.locNeg.x, dec.yMax - line1x.locNeg.y, line1x.locPos.x, dec.yMax
+          - line1x.locPos.y);
+
+    final Line line2p = trail.findBestSolidLine(trail.followSeek(line1x.stepPos + 5).step, line1x.stepNeg, +1,
+        line1x.angle);
+
+    System.out.println("line2p: " + line2p);
+    if (diag.isMarkupEnabled())
+      diag.addTransientLine(Feature.STOP_EDGE, line2p.locNeg.x, dec.yMax - line2p.locNeg.y, line2p.locPos.x, dec.yMax
+          - line2p.locPos.y);
+
+    final Line line2n = trail.findBestSolidLine(trail.followSeek(line1x.stepNeg - 5).step, line1x.stepPos, -1,
+        line1x.angle);
+
+    System.out.println("line2n: " + line2n);
+    if (diag.isMarkupEnabled())
+      diag.addTransientLine(Feature.STOP_RESCAN, line2n.locNeg.x, dec.yMax - line2n.locNeg.y, line2n.locPos.x, dec.yMax
+          - line2n.locPos.y);
+
     if (max(line2p.mag, line2n.mag) < 5)
       return false;
 
@@ -1405,7 +1479,7 @@ public class Region {
     int cross;
     if (line2p.mag > line2n.mag) {
       line2x = line2p;
-      trail.findTravelLimits(line2x);
+      trail.findTravelLimits(line2x, 4f);
       if (line2x.distSq < 100 || line2x.devn * 10 >= Math.sqrt(line2x.distSq))
         return false;
 
@@ -1440,7 +1514,7 @@ public class Region {
       }
     } else {
       line2x = line2n;
-      trail.findTravelLimits(line2x);
+      trail.findTravelLimits(line2x, 4f);
       if (line2x.distSq < 100 || line2x.devn / Math.sqrt(line2x.distSq) >= 0.1)
         return false;
 
