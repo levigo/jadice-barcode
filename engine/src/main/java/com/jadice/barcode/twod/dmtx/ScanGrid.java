@@ -1,11 +1,9 @@
 package com.jadice.barcode.twod.dmtx;
 
-import java.awt.Point;
-
-import com.levigo.barcode.DiagnosticSettings;
-import com.levigo.barcode.Marker.Feature;
-import com.levigo.barcode.Options;
-import com.levigo.barcode.grid.Grid;
+import com.jadice.barcode.DiagnosticSettings;
+import com.jadice.barcode.Options;
+import com.jadice.barcode.Marker.Feature;
+import com.jadice.barcode.grid.Grid;
 
 public class ScanGrid implements ScanStrategy {
   public enum Range {
@@ -168,7 +166,7 @@ public class ScanGrid implements ScanStrategy {
     } while (locStatus == Range.Bad);
 
     if (createMarkup)
-      diagnostics.add(Feature.INITIAL_SCAN, new Point(p.x, p.y));
+      diagnostics.addTransientPoint(Feature.INITIAL_SCAN, p.x, yMax - p.y);
 
     return locStatus != Range.End;
   }

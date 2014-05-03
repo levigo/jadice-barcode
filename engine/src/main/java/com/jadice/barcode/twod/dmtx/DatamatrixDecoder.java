@@ -1,11 +1,11 @@
 package com.jadice.barcode.twod.dmtx;
 
-import com.levigo.barcode.LuminanceDecoder;
-import com.levigo.barcode.Options;
-import com.levigo.barcode.Result;
-import com.levigo.barcode.Results;
-import com.levigo.barcode.Symbology;
-import com.levigo.barcode.grid.LuminanceGrid;
+import com.jadice.barcode.LuminanceDecoder;
+import com.jadice.barcode.Options;
+import com.jadice.barcode.Result;
+import com.jadice.barcode.Results;
+import com.jadice.barcode.Symbology;
+import com.jadice.barcode.grid.LuminanceGrid;
 
 public class DatamatrixDecoder implements LuminanceDecoder {
 

@@ -4,13 +4,13 @@ import static java.lang.Math.abs;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
-import java.awt.Point;
 import java.awt.Shape;
 import java.awt.geom.GeneralPath;
 
-import com.levigo.barcode.DiagnosticSettings;
-import com.levigo.barcode.Marker.Feature;
-import com.levigo.barcode.Options;
+import com.jadice.barcode.DiagnosticSettings;
+import com.jadice.barcode.Options;
+import com.jadice.barcode.Marker.Feature;
+import com.jadice.barcode.twod.dmtx.Decode.FlagGrid;
 
 /**
  * @struct DmtxRegion
@@ -22,32 +22,17 @@ public class Region {
    * @brief DmtxFollow
    */
   private class Follow {
-    Decode.Cache ptr; // FIXME
-    Decode.Cache neighbor; // FIXME
     int step;
     PixelLocation loc = new PixelLocation();
 
     public Follow(PixelLocation loc) {
       this.loc = loc.clone();
       step = 0;
-      ptr = dec.getCache(loc);
-      assert ptr != null;
-      neighbor = ptr;
-    }
-
-    public Follow(int x, int y) {
-      this.loc = new PixelLocation(x, y);
-      step = 0;
-      ptr = dec.getCache(loc);
-      assert ptr != null;
-      neighbor = ptr;
     }
 
     @Override
     public Region.Follow clone() {
       final Region.Follow f = new Follow(loc);
-      f.ptr = ptr;
-      f.neighbor = neighbor;
       f.step = step;
       f.loc = loc.clone();
       return f;
@@ -59,7 +44,7 @@ public class Region {
      */
     void followStep(int sign) {
       assert Math.abs(sign) == 1;
-      assert this.neighbor.isAnySet(0x40);
+      assert dec.getFlagGrid().isAnySet(loc, 0x40);
 
       int factor = stepsTotal + 1;
       int stepMod;
@@ -74,15 +59,13 @@ public class Region {
       else if (sign < 0 && stepMod == jumpToPos)
         loc.setTo(finalPos);
       else {
-        int patternIdx = sign < 0 ? this.neighbor.get() & 0x07 : (this.neighbor.get() & 0x38) >> 3;
+        int flags = dec.getFlagGrid().get(loc);
+        int patternIdx = sign < 0 ? flags & 0x07 : (flags & 0x38) >> 3;
         this.loc.x += dmtxPatternX[patternIdx];
         this.loc.y += dmtxPatternY[patternIdx];
       }
 
       step += sign;
-      ptr = dec.getCache(loc);
-      assert ptr != null;
-      neighbor = ptr;
     }
 
     /**
@@ -91,16 +74,14 @@ public class Region {
      */
     void followStep2(int sign) {
       assert Math.abs(sign) == 1;
-      assert this.neighbor.isAnySet(0x40);
+      FlagGrid flags = dec.getFlagGrid();
+      assert flags.isAnySet(loc, 0x40);
 
-      int patternIdx = sign < 0 ? this.neighbor.get() & 0x07 : (this.neighbor.get() & 0x38) >> 3;
+      int patternIdx = sign < 0 ? flags.get(loc) & 0x07 : (flags.get(loc) & 0x38) >> 3;
       this.loc.x += dmtxPatternX[patternIdx];
       this.loc.y += dmtxPatternY[patternIdx];
 
       step += sign;
-      ptr = dec.getCache(loc);
-      assert ptr != null;
-      neighbor = ptr;
     }
   }
 
@@ -137,26 +118,33 @@ public class Region {
       l.locNeg = locNeg.clone();
       return l;
     }
+
+    @Override
+    public String toString() {
+      return "BestLine [angle=" + angle + ", hOffset=" + hOffset + ", mag=" + mag + ", stepBeg=" + stepBeg
+          + ", stepPos=" + stepPos + ", stepNeg=" + stepNeg + ", distSq=" + distSq + ", devn=" + devn + ", locBeg="
+          + locBeg + ", locPos=" + locPos + ", locNeg=" + locNeg + "]";
+    }
   }
 
   public class PointFlow {
-    int plane;
+    int colorPlane;
     Direction arrive;
     final Direction depart;
-    final int mag;
-    final PixelLocation loc;
+    final int magnitude;
+    final PixelLocation position;
 
     public PointFlow(int colorPlane, Direction arrive, Direction depart, int mag, PixelLocation loc) {
-      plane = colorPlane;
+      this.colorPlane = colorPlane;
       this.arrive = arrive;
       this.depart = depart;
-      this.mag = mag;
-      this.loc = loc;
+      this.magnitude = mag;
+      this.position = loc;
     }
 
     @Override
     public PointFlow clone() {
-      return new PointFlow(plane, arrive, depart, mag, loc.clone());
+      return new PointFlow(colorPlane, arrive, depart, magnitude, position.clone());
     }
 
     /**
@@ -170,14 +158,13 @@ public class Region {
       int occupied = 0;
       PointFlow strongestFlow = blankEdge;
       for (Direction direction : Direction.values()) {
-        loc.x = this.loc.x + direction.dx;
-        loc.y = this.loc.y + direction.dy;
+        loc.x = this.position.x + direction.dx;
+        loc.y = this.position.y + direction.dy;
 
-        final Decode.Cache cache = dec.getCache(loc);
-        if (!cache.isValid())
+        if (!dec.getFlagGrid().isValid(loc))
           continue;
 
-        if (cache.isAnySet(0x80))
+        if (dec.getFlagGrid().isAnySet(loc, 0x80))
           if (++occupied > 2)
             return blankEdge;
           else
@@ -189,9 +176,10 @@ public class Region {
         if (attemptDiff > 1)
           continue;
 
-        PointFlow flow = getPointFlow(this.plane, loc, direction);
+        PointFlow flow = getPointFlow(this.colorPlane, loc, direction);
 
-        if (flow.mag > strongestFlow.mag || flow.mag == strongestFlow.mag && direction.isManhattan())
+        if (flow.magnitude > strongestFlow.magnitude || flow.magnitude == strongestFlow.magnitude
+            && direction.isManhattan())
           strongestFlow = flow;
       }
 
@@ -200,7 +188,8 @@ public class Region {
 
     @Override
     public String toString() {
-      return "PointFlow [plane=" + plane + ", from " + arrive + " to " + depart + ", mag=" + mag + ", loc=" + loc + "]";
+      return "PointFlow [plane=" + colorPlane + ", from " + arrive + " to " + depart + ", mag=" + magnitude + ", loc="
+          + position + "]";
     }
   }
 
@@ -209,17 +198,18 @@ public class Region {
    * information struct \param loc Pixel location \return Detected region (if any)
    */
   static Region scan(Decode dec, PixelLocation loc, Options options) {
-    final Decode.Cache cache = dec.getCache(loc);
-    if (cache.isAnySet(0x80))
+    if (dec.getFlagGrid().isAnySet(loc, 0x80))
       return null;
 
     DiagnosticSettings diag = options.getOptions(DiagnosticSettings.class);
+    if (diag.isMarkupEnabled())
+      diag.getTransientMarkers().clear();
 
     final Region reg = new Region(dec, diag);
 
     /* Test for presence of any reasonable edge at this location */
-    final PointFlow flowBegin = reg.matrixRegionSeekEdge(loc);
-    if (flowBegin.mag < (int) (dec.getEdgeThresh() * 7.65 + 0.5))
+    final PointFlow flowBegin = reg.detectEdge(loc);
+    if (flowBegin.magnitude < (int) (dec.getEdgeThresh() * 7.65 + 0.5))
       return null;
 
     /* Determine barcode orientation */
@@ -245,7 +235,7 @@ public class Region {
       return null;
 
     if (diag.isMarkupEnabled())
-      diag.add(Feature.DETECTION_SCAN, new Point(loc.x, loc.y));
+      diag.addTransientPoint(Feature.DETECTION_SCAN, loc.x, dec.yMax - loc.y);
 
     /* Found a valid matrix region */
     return reg;
@@ -428,15 +418,7 @@ public class Region {
    *
    */
   private boolean matrixRegionOrientation(PointFlow begin) {
-    int cross;
-    int minArea;
-    int scale;
     SymbolSize symbolShape;
-    int maxDiagonal;
-    BestLine line1x, line2x;
-    BestLine line2n, line2p;
-    Region.Follow fTmp;
-
     if (dec.getSizeIdxExpected() == SymbolSize.SquareAuto
         || dec.getSizeIdxExpected().ordinal() >= SymbolSize.Fixed10x10.ordinal()
         && dec.getSizeIdxExpected().ordinal() <= SymbolSize.Fixed144x144.ordinal())
@@ -448,26 +430,26 @@ public class Region {
     else
       symbolShape = SymbolSize.ShapeAuto;
 
+    int maxDiagonal;
     if (dec.getEdgeMax() != LibDMTX.DmtxUndefined) {
       if (symbolShape == SymbolSize.RectAuto)
-        maxDiagonal = (int) (1.23 * dec.getEdgeMax() + 0.5); /*
-                                                              * sqrt(5/4) + 10%
-                                                              */
+        maxDiagonal = (int) (1.23 * dec.getEdgeMax() + 0.5); // sqrt(5/4) + 10%
       else
-        maxDiagonal = (int) (1.56 * dec.getEdgeMax() + 0.5); /* sqrt(2) + 10% */
+        maxDiagonal = (int) (1.56 * dec.getEdgeMax() + 0.5); // sqrt(2) + 10%
     } else
       maxDiagonal = LibDMTX.DmtxUndefined;
 
     /* Follow to end in both directions */
-    if (!trailBlazeContinuous(begin, maxDiagonal) || this.stepsTotal < 40) {
+    if (!followEdge(begin, maxDiagonal) || this.stepsTotal < 40) {
       TrailClear(0x40);
       return false;
     }
 
     /* Filter out region candidates that are smaller than expected */
     if (dec.getEdgeMin() != LibDMTX.DmtxUndefined) {
-      scale = dec.getScale();
+      int scale = dec.getScale();
 
+      int minArea;
       if (symbolShape == SymbolSize.SquareAuto)
         minArea = dec.getEdgeMin() * dec.getEdgeMin() / (scale * scale);
       else
@@ -479,7 +461,7 @@ public class Region {
       }
     }
 
-    line1x = findBestSolidLine(0, 0, +1, LibDMTX.DmtxUndefined);
+    BestLine line1x = findBestSolidLine(0, 0, +1, LibDMTX.DmtxUndefined);
     if (line1x.mag < 5) {
       TrailClear(0x40);
       return false;
@@ -492,14 +474,16 @@ public class Region {
     }
     assert line1x.stepPos >= line1x.stepNeg;
 
-    fTmp = followSeek(line1x.stepPos + 5);
-    line2p = findBestSolidLine(fTmp.step, line1x.stepNeg, +1, line1x.angle);
+    Follow fTmp = followSeek(line1x.stepPos + 5);
+    BestLine line2p = findBestSolidLine(fTmp.step, line1x.stepNeg, +1, line1x.angle);
 
     fTmp = followSeek(line1x.stepNeg - 5);
-    line2n = findBestSolidLine(fTmp.step, line1x.stepPos, -1, line1x.angle);
+    BestLine line2n = findBestSolidLine(fTmp.step, line1x.stepPos, -1, line1x.angle);
     if (max(line2p.mag, line2n.mag) < 5)
       return false;
 
+    BestLine line2x;
+    int cross;
     if (line2p.mag > line2n.mag) {
       line2x = line2p;
       findTravelLimits(line2x);
@@ -864,7 +848,7 @@ public class Region {
        */
 
       travel[0] = travelStart;
-      int color = this.readModuleColor(symbolRow[0], symbolCol[0], this.sizeIdx, this.flowBegin.plane);
+      int color = this.readModuleColor(symbolRow[0], symbolCol[0], this.sizeIdx, this.flowBegin.colorPlane);
       int tModule = (darkOnLight) ? this.offColor - color : color - this.offColor;
 
       int statusModule = (travelStep == 1 || (line[0] & 0x01) == 0) ? Region.DmtxModuleOnRGB : Region.DmtxModuleOff;
@@ -881,7 +865,7 @@ public class Region {
          * comparison to previous "known" module
          */
 
-        color = this.readModuleColor(symbolRow[0], symbolCol[0], this.sizeIdx, this.flowBegin.plane);
+        color = this.readModuleColor(symbolRow[0], symbolCol[0], this.sizeIdx, this.flowBegin.colorPlane);
         tModule = (darkOnLight) ? this.offColor - color : color - this.offColor;
 
         if (statusPrev == Region.DmtxModuleOnRGB) {
@@ -953,7 +937,7 @@ public class Region {
       /* Sum module colors along horizontal calibration bar */
       row = symbolRows - 1;
       for (col = 0; col < symbolCols; col++) {
-        color = this.readModuleColor(row, col, SymbolSize.values()[sizeIdx], this.flowBegin.plane);
+        color = this.readModuleColor(row, col, SymbolSize.values()[sizeIdx], this.flowBegin.colorPlane);
         if ((col & 0x01) != 0x00)
           colorOffAvg += color;
         else
@@ -963,7 +947,7 @@ public class Region {
       /* Sum module colors along vertical calibration bar */
       col = symbolCols - 1;
       for (row = 0; row < symbolRows; row++) {
-        color = this.readModuleColor(row, col, SymbolSize.values()[sizeIdx], this.flowBegin.plane);
+        color = this.readModuleColor(row, col, SymbolSize.values()[sizeIdx], this.flowBegin.colorPlane);
         if ((row & 0x01) != 0x00)
           colorOffAvg += color;
         else
@@ -1067,14 +1051,14 @@ public class Region {
 
     darkOnLight = this.offColor > this.onColor;
     jumpThreshold = Math.abs((int) (0.4 * (this.onColor - this.offColor) + 0.5));
-    color = this.readModuleColor(yStart, xStart, this.sizeIdx, this.flowBegin.plane);
+    color = this.readModuleColor(yStart, xStart, this.sizeIdx, this.flowBegin.colorPlane);
     tModule = darkOnLight ? this.offColor - color : color - this.offColor;
 
     for (x = xStart + xInc, y = yStart + yInc; dir == Direction.E && x < this.symbolCols || dir == Direction.N
         && y < this.symbolRows; x += xInc, y += yInc) {
 
       tPrev = tModule;
-      color = this.readModuleColor(y, x, this.sizeIdx, this.flowBegin.plane);
+      color = this.readModuleColor(y, x, this.sizeIdx, this.flowBegin.colorPlane);
       tModule = darkOnLight ? this.offColor - color : color - this.offColor;
 
       if (state == Region.DmtxModuleOff) {
@@ -1098,12 +1082,11 @@ public class Region {
   private Region.Follow followSeek(int seek) {
     int i;
     int sign;
-    Region.Follow follow = new Follow(this.flowBegin.loc);
+    Region.Follow follow = new Follow(this.flowBegin.position);
 
     sign = seek > 0 ? +1 : -1;
     for (i = 0; i != seek; i += sign) {
       follow.followStep(sign);
-      assert follow.ptr != null;
       assert abs(follow.step) <= this.stepsTotal;
     }
 
@@ -1124,56 +1107,50 @@ public class Region {
   // 0x40 a = assigned bit
   // 0x38 u = 3 bits points upstream 0-7
   // 0x07 d = 3 bits points downstream 0-7
-  private boolean trailBlazeContinuous(PointFlow flowBegin, int maxDiagonal) {
-    int posAssigns, negAssigns, clears;
-    int sign;
-    int steps;
-    Decode.Cache cache;
-    Decode.Cache cacheNext;
-    Decode.Cache cacheBeg;
-    PointFlow flow, flowNext;
-    PixelLocation boundMin, boundMax;
-
-    boundMin = flowBegin.loc.clone();
-    boundMax = flowBegin.loc.clone();
-    cacheBeg = dec.getCache(flowBegin.loc);
-    cacheBeg.setTo(0x80 | 0x40); /* Mark location as visited and assigned */
+  private boolean followEdge(PointFlow flowBegin, int maxDiagonal) {
+    PixelLocation boundMin = flowBegin.position.clone();
+    PixelLocation boundMax = flowBegin.position.clone();
+    dec.getFlagGrid().setTo(flowBegin.position, 0x80 | 0x40); /*
+                                                               * Mark location as visited and
+                                                               * assigned
+                                                               */
 
     this.flowBegin = flowBegin;
 
-    posAssigns = negAssigns = 0;
-    for (sign = 1; sign >= -1; sign -= 2) {
-      flow = flowBegin;
-      cache = cacheBeg;
+    int negAssigns = 0;
+    int posAssigns = 0;
+    for (int sign = 1; sign >= -1; sign -= 2) {
+      PointFlow flow = flowBegin;
 
+      int steps;
       for (steps = 0;; steps++) {
         if (maxDiagonal != LibDMTX.DmtxUndefined
             && (boundMax.x - boundMin.x > maxDiagonal || boundMax.y - boundMin.y > maxDiagonal))
           break;
 
         /* Find the strongest eligible neighbor */
-        flowNext = flow.findStrongestNeighbor(sign);
+        PointFlow flowNext = flow.findStrongestNeighbor(sign);
         // System.out.printf("sign: %d, steps: %d, flowNext: %d,%d,%d,%d,%d/%d, flow: %d,%d,%d,%d,%d/%d\n",
         // sign, steps,
         // flowNext.arrive, flowNext.depart, flowNext.mag, flowNext.plane, flowNext.loc.X,
         // flowNext.loc.Y,
         // flow.arrive, flow.depart, flow.mag, flow.plane, flow.loc.X, flow.loc.Y);
-        if (flowNext.mag < 50)
+        if (flowNext.magnitude < 50)
           break;
 
         if (diag.isMarkupEnabled())
-          diag.add(sign > 0 ? Feature.START : Feature.STOP, new Point(flowNext.loc.x, dec.yMax - flowNext.loc.y));
+          diag.addTransientPoint(sign > 0 ? Feature.START : Feature.STOP, flowNext.position.x, dec.yMax
+              - flowNext.position.y);
 
         /* Get the neighbor's cache location */
-        cacheNext = dec.getCache(flowNext.loc);
-        assert !cacheNext.isAnySet(0x80);
+        assert !dec.getFlagGrid().isAnySet(flowNext.position, 0x80);
 
         /*
          * Mark departure from current location. If flowing downstream (sign < 0) then departure
          * vector here is the arrival vector of the next location. Upstream flow uses the opposite
          * rule.
          */
-        cache.set(sign < 0 ? flowNext.arrive.ordinal() : flowNext.arrive.ordinal() << 3);
+        dec.getFlagGrid().set(flow.position, sign < 0 ? flowNext.arrive.ordinal() : flowNext.arrive.ordinal() << 3);
 
         /* Mark known direction for next location */
         /*
@@ -1182,8 +1159,9 @@ public class Region {
         /*
          * If testing upstream (sign > 0) then next downstream is opposite of next arrival
          */
-        cacheNext.setTo(sign < 0 ? flowNext.arrive.opposite().ordinal() << 3 : flowNext.arrive.opposite().ordinal());
-        cacheNext.set(0x80 | 0x40); // Mark location
+        dec.getFlagGrid().setTo(flowNext.position,
+            sign < 0 ? flowNext.arrive.opposite().ordinal() << 3 : flowNext.arrive.opposite().ordinal());
+        dec.getFlagGrid().set(flowNext.position, 0x80 | 0x40); // Mark location
 
         // as visited
         // and assigned
@@ -1192,26 +1170,25 @@ public class Region {
           posAssigns++;
         else
           negAssigns++;
-        cache = cacheNext;
         flow = flowNext;
 
-        if (flow.loc.x > boundMax.x)
-          boundMax.x = flow.loc.x;
-        else if (flow.loc.x < boundMin.x)
-          boundMin.x = flow.loc.x;
-        if (flow.loc.y > boundMax.y)
-          boundMax.y = flow.loc.y;
-        else if (flow.loc.y < boundMin.y)
-          boundMin.y = flow.loc.y;
+        if (flow.position.x > boundMax.x)
+          boundMax.x = flow.position.x;
+        else if (flow.position.x < boundMin.x)
+          boundMin.x = flow.position.x;
+        if (flow.position.y > boundMax.y)
+          boundMax.y = flow.position.y;
+        else if (flow.position.y < boundMin.y)
+          boundMin.y = flow.position.y;
 
         /* CALLBACK_POINT_PLOT(flow.loc, (sign > 0) ? 2 : 3, 1, 2); */
       }
 
       if (sign > 0) {
-        this.finalPos = flow.loc.clone();
+        this.finalPos = flow.position.clone();
         this.jumpToNeg = steps;
       } else {
-        this.finalNeg = flow.loc.clone();
+        this.finalNeg = flow.position.clone();
         this.jumpToPos = steps;
       }
     }
@@ -1220,7 +1197,7 @@ public class Region {
     this.boundMax = boundMax;
 
     /* Clear "visited" bit from trail */
-    clears = TrailClear(0x80);
+    int clears = TrailClear(0x80);
     assert posAssigns + negAssigns == clears - 1;
 
     /* XXX clean this up ... redundant test above */
@@ -1237,43 +1214,32 @@ public class Region {
    * 
    */
   private int trailBlazeGapped(BresenhamLine line, int streamDir) {
-    Decode.Cache beforeCache;
-    Decode.Cache afterCache;
-    boolean onEdge;
-    int distSq, distSqMax;
     final int travel[] = new int[1], outward[] = new int[1];
-    int xDiff, yDiff;
-    int steps;
-    int stepDir;
     final int dirMap[] = {
         0, 1, 2, 7, 8, 3, 6, 5, 4
     };
-    PixelLocation beforeStep, afterStep;
-    PointFlow flow, flowNext;
-    PixelLocation loc0;
-    int xStep, yStep;
 
-    loc0 = line.loc.clone();
-    flow = getPointFlow(this.flowBegin.plane, loc0, NEIGHTBOR_NONE);
-    distSqMax = line.xDelta * line.xDelta + line.yDelta * line.yDelta;
-    steps = 0;
-    onEdge = true;
+    PixelLocation loc0 = line.loc.clone();
+    PointFlow flow = getPointFlow(this.flowBegin.colorPlane, loc0, NEIGHTBOR_NONE);
+    int distSqMax = line.xDelta * line.xDelta + line.yDelta * line.yDelta;
+    int steps = 0;
+    boolean onEdge = true;
 
-    beforeStep = loc0.clone();
-    beforeCache = dec.getCache(loc0);
-    if (!beforeCache.isValid())
+    PixelLocation beforeStep = loc0;
+    if (!dec.getFlagGrid().isValid(loc0))
       return 0;
 
-    beforeCache.reset(); /* probably should just overwrite one direction */
+    dec.getFlagGrid().reset(loc0); /* probably should just overwrite one direction */
 
+    int distSq;
     do {
       if (onEdge) {
-        flowNext = flow.findStrongestNeighbor(streamDir);
-        if (flowNext.mag == LibDMTX.DmtxUndefined)
+        PointFlow flowNext = flow.findStrongestNeighbor(streamDir);
+        if (flowNext.magnitude == LibDMTX.DmtxUndefined)
           break;
 
-        line.clone().getStep(flowNext.loc, travel, outward);
-        if (flowNext.mag < 50 || outward[0] < 0 || outward[0] == 0 && travel[0] < 0)
+        line.clone().getStep(flowNext.position, travel, outward);
+        if (flowNext.magnitude < 50 || outward[0] < 0 || outward[0] == 0 && travel[0] < 0)
           onEdge = false;
         else {
           line.step(travel[0], outward[0]);
@@ -1283,38 +1249,36 @@ public class Region {
 
       if (onEdge == false) {
         line.step(1, 0);
-        flow = getPointFlow(this.flowBegin.plane, line.loc, NEIGHTBOR_NONE);
-        if (flow.mag > 50)
+        flow = getPointFlow(this.flowBegin.colorPlane, line.loc, NEIGHTBOR_NONE);
+        if (flow.magnitude > 50)
           onEdge = true;
       }
 
-      afterStep = line.loc.clone();
-      afterCache = dec.getCache(afterStep);
-      if (!afterCache.isValid())
+      PixelLocation afterStep = line.loc;
+      if (!dec.getFlagGrid().isValid(afterStep))
         break;
 
       /* Determine step direction using pure magic */
-      xStep = afterStep.x - beforeStep.x;
-      yStep = afterStep.y - beforeStep.y;
+      int xStep = afterStep.x - beforeStep.x;
+      int yStep = afterStep.y - beforeStep.y;
       assert abs(xStep) <= 1 && abs(yStep) <= 1;
-      stepDir = dirMap[3 * yStep + xStep + 4];
+      int stepDir = dirMap[3 * yStep + xStep + 4];
       assert stepDir != 8;
 
       if (streamDir < 0) {
-        beforeCache.set(0x40 | stepDir);
-        afterCache.setTo((stepDir + 4) % 8 << 3);
+        dec.getFlagGrid().set(beforeStep, 0x40 | stepDir);
+        dec.getFlagGrid().setTo(afterStep, (stepDir + 4) % 8 << 3);
       } else {
-        beforeCache.set(0x40 | stepDir << 3);
-        afterCache.setTo((stepDir + 4) % 8);
+        dec.getFlagGrid().set(beforeStep, 0x40 | stepDir << 3);
+        dec.getFlagGrid().setTo(afterStep, (stepDir + 4) % 8);
       }
 
       /* Guaranteed to have taken one step since top of loop */
-      xDiff = line.loc.x - loc0.x;
-      yDiff = line.loc.y - loc0.y;
+      int xDiff = line.loc.x - loc0.x;
+      int yDiff = line.loc.y - loc0.y;
       distSq = xDiff * xDiff + yDiff * yDiff;
 
       beforeStep = line.loc.clone();
-      beforeCache = afterCache;
       steps++;
 
       // System.out.printf("TPG: dsq: %d, dsqm: %d diff: %d/%d\n", distSq, distSqMax, xDiff,
@@ -1338,8 +1302,8 @@ public class Region {
     clears = 0;
     follow = followSeek(0);
     while (abs(follow.step) <= this.stepsTotal) {
-      assert follow.ptr.isAnySet(clearMask);
-      follow.ptr.clear(clearMask);
+      assert dec.getFlagGrid().isAnySet(follow.loc, clearMask);
+      dec.getFlagGrid().clear(follow.loc, clearMask);
       follow.followStep(+1);
       clears++;
     }
@@ -1710,7 +1674,7 @@ public class Region {
    * fix \return Decoded message
    */
   public Message decodeMosaicRegion(int fix) {
-    final int colorPlane = flowBegin.plane;
+    final int colorPlane = flowBegin.colorPlane;
 
     /**
      * Consider performing a color cube fit here to identify exact RGB of all 6 "cube-like" corners
@@ -1724,16 +1688,16 @@ public class Region {
      * of just a plane in 3D.
      */
 
-    flowBegin.plane = 0; /* kind of a hack */
+    flowBegin.colorPlane = 0; /* kind of a hack */
     final Message rMsg = this.decodeMatrixRegion(fix);
 
-    flowBegin.plane = 1; /* kind of a hack */
+    flowBegin.colorPlane = 1; /* kind of a hack */
     final Message gMsg = this.decodeMatrixRegion(fix);
 
-    flowBegin.plane = 2; /* kind of a hack */
+    flowBegin.colorPlane = 2; /* kind of a hack */
     final Message bMsg = this.decodeMatrixRegion(fix);
 
-    flowBegin.plane = colorPlane;
+    flowBegin.colorPlane = colorPlane;
 
     final Message oMsg = new Message(sizeIdx, Message.Format.DmtxFormatMosaic);
 
@@ -1865,28 +1829,28 @@ public class Region {
    *
    *
    */
-  private PointFlow matrixRegionSeekEdge(PixelLocation loc) {
+  private PointFlow detectEdge(PixelLocation loc) {
     final int channelCount = 1; // FIXME dec.getImage().getChannelCount();
 
     /* Find whether red, green, or blue shows the strongest edge */
     PointFlow flow = blankEdge;
     for (int channel = 0; channel < channelCount; channel++) {
       PointFlow f = getPointFlow(channel, loc, Region.NEIGHTBOR_NONE);
-      if (f.mag > flow.mag)
+      if (f.magnitude > flow.magnitude)
         flow = f;
     }
 
-    if (flow.mag < 10)
+    if (flow.magnitude < 10)
       return blankEdge;
 
     final PointFlow flowPos = flow.findStrongestNeighbor(+1);
     final PointFlow flowNeg = flow.findStrongestNeighbor(-1);
-    if (flowPos.mag != 0 && flowNeg.mag != 0) {
+    if (flowPos.magnitude != 0 && flowNeg.magnitude != 0) {
       final PointFlow flowPosBack = flowPos.findStrongestNeighbor(-1);
       final PointFlow flowNegBack = flowNeg.findStrongestNeighbor(+1);
       if (flowPos.arrive == flowPosBack.arrive.opposite() && flowNeg.arrive == flowNegBack.arrive.opposite()) {
         flow.arrive = Region.NEIGHTBOR_NONE;
-        Region.CALLBACK_POINT_PLOT(flow.loc, 1, 1, 1);
+        Region.CALLBACK_POINT_PLOT(flow.position, 1, 1, 1);
         return flow;
       }
     }

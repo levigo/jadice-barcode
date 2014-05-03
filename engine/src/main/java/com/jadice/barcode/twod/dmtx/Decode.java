@@ -3,64 +3,112 @@ package com.jadice.barcode.twod.dmtx;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
-import com.levigo.barcode.Options;
-import com.levigo.barcode.grid.Grid;
+import com.jadice.barcode.Options;
+import com.jadice.barcode.grid.Grid;
 
 public class Decode {
-  public class Cache {
+  public class FlagGrid {
     private final int width;
     private final int height;
-    private int x;
-    private int y;
+    private final byte cache[];
 
-    Cache(int x, int y) throws OutOfRangeException {
-      width = getWidth();
-      height = getHeight();
-      seek(x, y);
+    FlagGrid(byte cache[], int width, int height) throws OutOfRangeException {
+      this.width = width;
+      this.height = height;
+      this.cache = cache;
     }
 
-    public boolean isValid() throws OutOfRangeException {
-      return x >= 0 && x < width && y >= 0 && y < height;
+    public boolean isValid(PixelLocation pos) throws OutOfRangeException {
+      return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
     }
 
-    public void seek(int x, int y) throws OutOfRangeException {
-      this.x = x;
-      this.y = y;
-
-    }
-
-    public int get() {
-      if (!isValid())
+    public int get(PixelLocation pos) {
+      if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
-      return cache[y * width + x] & 0xff;
+      return cache[pos.y * width + pos.x] & 0xff;
     }
 
-    public void setTo(int value) {
-      if (!isValid())
+    public void setTo(PixelLocation pos, int value) {
+      if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
-      cache[y * width + x] = (byte) value;
+      cache[pos.y * width + pos.x] = (byte) value;
     }
 
-    public void set(int value) {
-      if (!isValid())
+    public void set(PixelLocation pos, int value) {
+      if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
-      cache[y * width + x] |= (byte) value;
+      cache[pos.y * width + pos.x] |= (byte) value;
     }
 
-    public void reset() {
-      if (!isValid())
+    public void reset(PixelLocation pos) {
+      if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
-      cache[y * width + x] = 0;
+      cache[pos.y * width + pos.x] = 0;
     }
 
-    public void clear(int value) {
-      if (!isValid())
+    public void clear(PixelLocation pos, int value) {
+      if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
-      cache[y * width + x] &= (byte) ~value;
+      cache[pos.y * width + pos.x] &= (byte) ~value;
     }
 
-    public boolean isAnySet(int value) {
-      return (cache[y * width + x] & (byte) value) != 0;
+    public boolean isAnySet(PixelLocation pos, int value) {
+      if (!isValid(pos))
+        throw new OutOfRangeException("Cache location invalid");
+      return (cache[pos.y * width + pos.x] & (byte) value) != 0;
+    }
+
+    /**
+     * \brief Fill the region covered by the quadrilateral given by (p0,p1,p2,p3) in the cache.
+     * 
+     * @param decode TODO
+     * @param p0 TODO
+     * @param p1 TODO
+     * @param p2 TODO
+     * @param p3 TODO
+     */
+    void fillQuad(PixelLocation p0, PixelLocation p1, PixelLocation p2, PixelLocation p3) {
+      PixelLocation pEmpty = new PixelLocation();
+      BresenhamLine lines[] = new BresenhamLine[4];
+      lines[0] = new BresenhamLine(p0, p1, pEmpty);
+      lines[1] = new BresenhamLine(p1, p2, pEmpty);
+      lines[2] = new BresenhamLine(p2, p3, pEmpty);
+      lines[3] = new BresenhamLine(p3, p0, pEmpty);
+
+      int minY = getYMax();
+      int maxY = 0;
+
+      minY = min(minY, p0.y);
+      maxY = max(maxY, p0.y);
+      minY = min(minY, p1.y);
+      maxY = max(maxY, p1.y);
+      minY = min(minY, p2.y);
+      maxY = max(maxY, p2.y);
+      minY = min(minY, p3.y);
+      maxY = max(maxY, p3.y);
+
+      int sizeY = maxY - minY + 1;
+
+      int scanlineMin[] = new int[sizeY]; // (int *)malloc(sizeY * sizeof(int));
+      int scanlineMax[] = new int[sizeY]; // (int *)calloc(sizeY, sizeof(int));
+
+      for (int i = 0; i < sizeY; i++)
+        scanlineMin[i] = getXMax();
+
+      for (int i = 0; i < 4; i++)
+        while (lines[i].loc.x != lines[i].loc1.x || lines[i].loc.y != lines[i].loc1.y) {
+          int idx = lines[i].loc.y - minY;
+          scanlineMin[idx] = min(scanlineMin[idx], lines[i].loc.x);
+          scanlineMax[idx] = max(scanlineMax[idx], lines[i].loc.x);
+          lines[i].step(1, 0);
+        }
+
+      PixelLocation pos = new PixelLocation();
+      for (pos.y = minY; pos.y < maxY && pos.y < getYMax(); pos.y++) {
+        int idx = pos.y - minY;
+        for (pos.x = scanlineMin[idx]; pos.x < scanlineMax[idx] && pos.x < getXMax(); pos.x++)
+          set(pos, 0x80);
+      }
     }
   }
 
@@ -89,6 +137,8 @@ public class Decode {
 
   private final Options options;
 
+  private final FlagGrid flagGrid;
+
   /**
    * \brief Initialize decode struct with default values \param img \return Initialized DmtxDecode
    * struct
@@ -114,6 +164,7 @@ public class Decode {
     this.scale = scale;
 
     cache = new byte[width * height];
+    flagGrid = new FlagGrid(cache, width, height);
 
     this.startTime = System.currentTimeMillis();
   }
@@ -178,10 +229,6 @@ public class Decode {
     int v = grid.getPixelLuminance(xUnscaled, grid.getHeight() - yUnscaled - 1);
     // System.out.println(xUnscaled + "/" + yUnscaled + "[" + channel + "]: " + v);
     return v; // FIXME , channel);
-  }
-
-  Cache getCache(PixelLocation loc) {
-    return new Cache(loc.x, loc.y);
   }
 
   public void setSizeIdxExpected(SymbolSize sizeIdxExpected) {
@@ -296,17 +343,20 @@ public class Decode {
         lines[i].step(1, 0);
       }
 
-    Decode.Cache cache = new Cache(0, 0);
-    for (int posY = minY; posY < maxY && posY < getYMax(); posY++) {
-      int idx = posY - minY;
-      for (int posX = scanlineMin[idx]; posX < scanlineMax[idx] && posX < getXMax(); posX++)
-        cache.seek(posX, posY);
-      if (cache.isValid())
-        cache.set(0x80);
+    PixelLocation pos = new PixelLocation();
+    for (pos.y = minY; pos.y < maxY && pos.y < getYMax(); pos.y++) {
+      int idx = pos.y - minY;
+      for (pos.x = scanlineMin[idx]; pos.x < scanlineMax[idx] && pos.x < getXMax(); pos.x++)
+        if (getFlagGrid().isValid(pos))
+          getFlagGrid().set(pos, 0x80);
     }
   }
 
   public int getScale() {
     return scale;
+  }
+
+  public FlagGrid getFlagGrid() {
+    return flagGrid;
   }
 }

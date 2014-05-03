@@ -1,6 +1,6 @@
 package com.jadice.barcode.twod.dmtx;
 
-import com.levigo.barcode.Settings;
+import com.jadice.barcode.Settings;
 
 public class DatamatrixSettings implements Settings {
   private int minExtent;
