@@ -23,9 +23,9 @@ public class Region {
    */
   private class Follow {
     int step;
-    PixelLocation loc = new PixelLocation();
+    Point loc = new Point();
 
-    public Follow(PixelLocation loc) {
+    public Follow(Point loc) {
       this.loc = loc.clone();
       step = 0;
     }
@@ -98,9 +98,9 @@ public class Region {
     int stepNeg;
     long distSq;
     double devn;
-    PixelLocation locBeg;
-    PixelLocation locPos;
-    PixelLocation locNeg;
+    Point locBeg;
+    Point locPos;
+    Point locNeg;
 
     @Override
     public BestLine clone() {
@@ -132,9 +132,9 @@ public class Region {
     Direction arrive;
     final Direction depart;
     final int magnitude;
-    final PixelLocation position;
+    final Point position;
 
-    public PointFlow(int colorPlane, Direction arrive, Direction depart, int mag, PixelLocation loc) {
+    public PointFlow(int colorPlane, Direction arrive, Direction depart, int mag, Point loc) {
       this.colorPlane = colorPlane;
       this.arrive = arrive;
       this.depart = depart;
@@ -151,7 +151,7 @@ public class Region {
      * 
      */
     PointFlow findStrongestNeighbor(int sign) {
-      final PixelLocation loc = new PixelLocation();
+      final Point loc = new Point();
 
       Direction attempt = sign < 0 ? this.depart : this.depart.opposite();
 
@@ -197,7 +197,7 @@ public class Region {
    * \brief Scan individual pixel for presence of barcode edge \param dec Pointer to DmtxDecode
    * information struct \param loc Pixel location \return Detected region (if any)
    */
-  static Region scan(Decode dec, PixelLocation loc, Options options) {
+  static Region scan(Decode dec, Point loc, Options options) {
     if (dec.getFlagGrid().isAnySet(loc, 0x80))
       return null;
 
@@ -245,10 +245,10 @@ public class Region {
   private int jumpToPos; /* */
   private int jumpToNeg; /* */
   private int stepsTotal; /* */
-  private PixelLocation finalPos; /* */
-  private PixelLocation finalNeg; /* */
-  private PixelLocation boundMin; /* */
-  private PixelLocation boundMax; /* */
+  private Point finalPos; /* */
+  private Point finalNeg; /* */
+  private Point boundMin; /* */
+  private Point boundMax; /* */
   private PointFlow flowBegin; /* */
 
   /* Orientation values */
@@ -257,24 +257,24 @@ public class Region {
   private int stepR;
   @SuppressWarnings("unused")
   private int stepT;
-  private PixelLocation locR; /* remove if stepR works above */
-  private PixelLocation locT; /* remove if stepT works above */
+  private Point locR; /* remove if stepR works above */
+  private Point locT; /* remove if stepT works above */
 
   /* Region fitting values */
   private int leftKnown; /* known == 1; unknown == 0 */
   private int leftAngle; /* hough angle of left edge */
-  private PixelLocation leftLoc; /* known (arbitrary) location on left edge */
+  private Point leftLoc; /* known (arbitrary) location on left edge */
   private BestLine leftLine; /* */
   private int bottomKnown; /* known == 1; unknown == 0 */
   private int bottomAngle; /* hough angle of bottom edge */
-  private PixelLocation bottomLoc; /* known (arbitrary) location on bottom edge */
+  private Point bottomLoc; /* known (arbitrary) location on bottom edge */
   private BestLine bottomLine; /* */
   private int topKnown; /* known == 1; unknown == 0 */
   private int topAngle; /* hough angle of top edge */
-  private PixelLocation topLoc; /* known (arbitrary) location on top edge */
+  private Point topLoc; /* known (arbitrary) location on top edge */
   private int rightKnown; /* known == 1; unknown == 0 */
   private int rightAngle; /* hough angle of right edge */
-  private PixelLocation rightLoc; /* known (arbitrary) location on right edge */
+  private Point rightLoc; /* known (arbitrary) location on right edge */
 
   /* Region calibration values */
   private int onColor; /* */
@@ -396,7 +396,7 @@ public class Region {
 
   private final DiagnosticSettings diag;
 
-  final PointFlow blankEdge = new PointFlow(0, null, null, Integer.MIN_VALUE, new PixelLocation());
+  final PointFlow blankEdge = new PointFlow(0, null, null, Integer.MIN_VALUE, new Point());
 
   public Region(Decode dec, DiagnosticSettings diag) {
     this.dec = dec;
@@ -408,7 +408,7 @@ public class Region {
 
   }
 
-  static void CALLBACK_POINT_PLOT(PixelLocation loc, int i, int j, int k) {
+  static void CALLBACK_POINT_PLOT(Point loc, int i, int j, int k) {
     // TODO Auto-generated method stub
 
   }
@@ -1097,7 +1097,7 @@ public class Region {
    *
    *
    */
-  private Follow followSeekLoc(PixelLocation loc) {
+  private Follow followSeekLoc(Point loc) {
     return new Follow(loc);
   }
 
@@ -1108,8 +1108,8 @@ public class Region {
   // 0x38 u = 3 bits points upstream 0-7
   // 0x07 d = 3 bits points downstream 0-7
   private boolean followEdge(PointFlow flowBegin, int maxDiagonal) {
-    PixelLocation boundMin = flowBegin.position.clone();
-    PixelLocation boundMax = flowBegin.position.clone();
+    Point boundMin = flowBegin.position.clone();
+    Point boundMax = flowBegin.position.clone();
     dec.getFlagGrid().setTo(flowBegin.position, 0x80 | 0x40); /*
                                                                * Mark location as visited and
                                                                * assigned
@@ -1219,13 +1219,13 @@ public class Region {
         0, 1, 2, 7, 8, 3, 6, 5, 4
     };
 
-    PixelLocation loc0 = line.loc.clone();
+    Point loc0 = line.loc.clone();
     PointFlow flow = getPointFlow(this.flowBegin.colorPlane, loc0, NEIGHTBOR_NONE);
     int distSqMax = line.xDelta * line.xDelta + line.yDelta * line.yDelta;
     int steps = 0;
     boolean onEdge = true;
 
-    PixelLocation beforeStep = loc0;
+    Point beforeStep = loc0;
     if (!dec.getFlagGrid().isValid(loc0))
       return 0;
 
@@ -1254,7 +1254,7 @@ public class Region {
           onEdge = true;
       }
 
-      PixelLocation afterStep = line.loc;
+      Point afterStep = line.loc;
       if (!dec.getFlagGrid().isValid(afterStep))
         break;
 
@@ -1329,7 +1329,7 @@ public class Region {
     int dH;
     Region.Follow follow;
     final BestLine line = new BestLine();
-    PixelLocation rHp;
+    Point rHp;
 
     angleBest = 0;
     hOffset = hOffsetBest = 0;
@@ -1423,7 +1423,7 @@ public class Region {
    *
    *
    */
-  private BestLine findBestSolidLine2(PixelLocation loc0, int tripSteps, int sign, int houghAvoid) {
+  private BestLine findBestSolidLine2(Point loc0, int tripSteps, int sign, int houghAvoid) {
     final int hough[][] = new int[3][DMTX_HOUGH_RES];
     int houghMin, houghMax;
     final byte houghTest[] = new byte[DMTX_HOUGH_RES];
@@ -1435,7 +1435,7 @@ public class Region {
     int dH;
     new Ray2();
     final BestLine line = new BestLine();
-    PixelLocation rHp;
+    Point rHp;
     Region.Follow follow;
 
     angleBest = 0;
@@ -1518,14 +1518,14 @@ public class Region {
     /* line.stepBeg is already known to sit on the best Hough line */
     Follow followNeg = followSeek(line.stepBeg);
     Follow followPos = followNeg.clone();
-    final PixelLocation loc0 = followPos.loc.clone();
+    final Point loc0 = followPos.loc.clone();
 
     final int cosAngle = rHvX[line.angle];
     final int sinAngle = rHvY[line.angle];
 
     distSqMax = 0;
-    PixelLocation negMax = followPos.loc.clone();
-    PixelLocation posMax = followPos.loc.clone();
+    Point negMax = followPos.loc.clone();
+    Point posMax = followPos.loc.clone();
 
     posTravel = negTravel = 0;
     posWander = posWanderMin = posWanderMax = posWanderMinLock = posWanderMaxLock = 0;
@@ -1606,8 +1606,8 @@ public class Region {
     int steps;
     int avoidAngle;
     SymbolSize symbolShape;
-    PixelLocation loc0;
-    final PixelLocation loc1 = new PixelLocation(), locOrigin = new PixelLocation();
+    Point loc0;
+    final Point loc1 = new Point(), locOrigin = new Point();
     BresenhamLine line;
     Region.Follow follow;
     BestLine bestLine;
@@ -1745,7 +1745,7 @@ public class Region {
     bottomLeft.multiply(fit2raw);
     bottomRight.multiply(fit2raw);
 
-    final PixelLocation pxTopLeft = new PixelLocation(), pxTopRight = new PixelLocation(), pxBottomLeft = new PixelLocation(), pxBottomRight = new PixelLocation();
+    final Point pxTopLeft = new Point(), pxTopRight = new Point(), pxBottomLeft = new Point(), pxBottomRight = new Point();
     pxTopLeft.x = (int) (0.5 + topLeft.x);
     pxTopLeft.y = (int) (0.5 + topLeft.y);
     pxBottomLeft.x = (int) (0.5 + bottomLeft.x);
@@ -1829,7 +1829,7 @@ public class Region {
    *
    *
    */
-  private PointFlow detectEdge(PixelLocation loc) {
+  private PointFlow detectEdge(Point loc) {
     final int channelCount = 1; // FIXME dec.getImage().getChannelCount();
 
     /* Find whether red, green, or blue shows the strongest edge */
@@ -1869,7 +1869,7 @@ public class Region {
     bottomLeft.multiply(fit2raw);
     bottomRight.multiply(fit2raw);
 
-    final PixelLocation pxTopLeft = new PixelLocation(), pxTopRight = new PixelLocation(), pxBottomLeft = new PixelLocation(), pxBottomRight = new PixelLocation();
+    final Point pxTopLeft = new Point(), pxTopRight = new Point(), pxBottomLeft = new Point(), pxBottomRight = new Point();
     pxTopLeft.x = (int) (0.5 + topLeft.x);
     pxTopLeft.y = (int) (0.5 + topLeft.y);
     pxBottomLeft.x = (int) (0.5 + bottomLeft.x);
@@ -1897,7 +1897,7 @@ public class Region {
    *
    *
    */
-  PointFlow getPointFlow(int colorPlane, PixelLocation loc, Direction arrive) {
+  PointFlow getPointFlow(int colorPlane, Point loc, Direction arrive) {
     // Sample grid at pattern positions:
     // 6 5 4
     // 7 L 3

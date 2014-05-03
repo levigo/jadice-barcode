@@ -18,41 +18,41 @@ public class Decode {
       this.cache = cache;
     }
 
-    public boolean isValid(PixelLocation pos) throws OutOfRangeException {
+    public boolean isValid(Point pos) throws OutOfRangeException {
       return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
     }
 
-    public int get(PixelLocation pos) {
+    public int get(Point pos) {
       if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
       return cache[pos.y * width + pos.x] & 0xff;
     }
 
-    public void setTo(PixelLocation pos, int value) {
+    public void setTo(Point pos, int value) {
       if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
       cache[pos.y * width + pos.x] = (byte) value;
     }
 
-    public void set(PixelLocation pos, int value) {
+    public void set(Point pos, int value) {
       if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
       cache[pos.y * width + pos.x] |= (byte) value;
     }
 
-    public void reset(PixelLocation pos) {
+    public void reset(Point pos) {
       if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
       cache[pos.y * width + pos.x] = 0;
     }
 
-    public void clear(PixelLocation pos, int value) {
+    public void clear(Point pos, int value) {
       if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
       cache[pos.y * width + pos.x] &= (byte) ~value;
     }
 
-    public boolean isAnySet(PixelLocation pos, int value) {
+    public boolean isAnySet(Point pos, int value) {
       if (!isValid(pos))
         throw new OutOfRangeException("Cache location invalid");
       return (cache[pos.y * width + pos.x] & (byte) value) != 0;
@@ -67,8 +67,8 @@ public class Decode {
      * @param p2 TODO
      * @param p3 TODO
      */
-    void fillQuad(PixelLocation p0, PixelLocation p1, PixelLocation p2, PixelLocation p3) {
-      PixelLocation pEmpty = new PixelLocation();
+    void fillQuad(Point p0, Point p1, Point p2, Point p3) {
+      Point pEmpty = new Point();
       BresenhamLine lines[] = new BresenhamLine[4];
       lines[0] = new BresenhamLine(p0, p1, pEmpty);
       lines[1] = new BresenhamLine(p1, p2, pEmpty);
@@ -103,7 +103,7 @@ public class Decode {
           lines[i].step(1, 0);
         }
 
-      PixelLocation pos = new PixelLocation();
+      Point pos = new Point();
       for (pos.y = minY; pos.y < maxY && pos.y < getYMax(); pos.y++) {
         int idx = pos.y - minY;
         for (pos.x = scanlineMin[idx]; pos.x < scanlineMax[idx] && pos.x < getXMax(); pos.x++)
@@ -280,7 +280,7 @@ public class Decode {
    * timeout Pointer to timeout time (null if none) \return Detected region (if found)
    */
   public Region findNextRegion() {
-    final PixelLocation loc = new PixelLocation();
+    final Point loc = new Point();
 
     /* Continue until we find a region or run out of chances */
     for (;;) {
@@ -307,8 +307,8 @@ public class Decode {
   /**
    * \brief Fill the region covered by the quadrilateral given by (p0,p1,p2,p3) in the cache.
    */
-  void cacheFillQuad(PixelLocation p0, PixelLocation p1, PixelLocation p2, PixelLocation p3) {
-    PixelLocation pEmpty = new PixelLocation();
+  void cacheFillQuad(Point p0, Point p1, Point p2, Point p3) {
+    Point pEmpty = new Point();
     BresenhamLine lines[] = new BresenhamLine[4];
     lines[0] = new BresenhamLine(p0, p1, pEmpty);
     lines[1] = new BresenhamLine(p1, p2, pEmpty);
@@ -343,7 +343,7 @@ public class Decode {
         lines[i].step(1, 0);
       }
 
-    PixelLocation pos = new PixelLocation();
+    Point pos = new Point();
     for (pos.y = minY; pos.y < maxY && pos.y < getYMax(); pos.y++) {
       int idx = pos.y - minY;
       for (pos.x = scanlineMin[idx]; pos.x < scanlineMax[idx] && pos.x < getXMax(); pos.x++)

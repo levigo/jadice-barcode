@@ -9,6 +9,6 @@ public interface ScanStrategy {
    * progress one position beyond that. If no good locations remain then return DmtxRangeEnd. \param
    * grid \return void
    */
-  public abstract boolean getNextScanLocation(PixelLocation p);
+  public abstract boolean getNextScanLocation(Point p);
 
 }

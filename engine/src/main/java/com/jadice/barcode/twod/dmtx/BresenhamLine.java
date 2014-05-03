@@ -13,9 +13,9 @@ public class BresenhamLine {
   int travel;
   int outward;
   int error;
-  PixelLocation loc;
-  PixelLocation loc0;
-  PixelLocation loc1;
+  Point loc;
+  Point loc0;
+  Point loc1;
 
   @Override
   protected BresenhamLine clone() {
@@ -59,9 +59,9 @@ public class BresenhamLine {
    *
    *
    */
-  BresenhamLine(PixelLocation loc0, PixelLocation loc1, PixelLocation locInside) {
+  BresenhamLine(Point loc0, Point loc1, Point locInside) {
     int cp;
-    PixelLocation locBeg, locEnd;
+    Point locBeg, locEnd;
 
     /* XXX Verify that loc0 and loc1 are inbounds */
 
@@ -118,7 +118,7 @@ public class BresenhamLine {
    *
    *
    */
-  void getStep(PixelLocation target, int travel[], int outward[]) {
+  void getStep(Point target, int travel[], int outward[]) {
     /* Determine necessary step along and outward from Bresenham line */
     if (this.steep) {
       travel[0] = this.yStep > 0 ? target.y - this.loc.y : this.loc.y - target.y;

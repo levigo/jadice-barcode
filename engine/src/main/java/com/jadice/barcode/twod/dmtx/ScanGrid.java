@@ -81,7 +81,7 @@ public class ScanGrid implements ScanStrategy {
    * \brief Extract current grid position in pixel coordinates and return whether location is good,
    * bad, or end \param grid \return Pixel location
    */
-  private Range getGridCoordinates(PixelLocation p) {
+  private Range getGridCoordinates(Point p) {
     /*
      * Initially pixelCount may fall beyond acceptable limits. Update grid state before testing
      * coordinates
@@ -115,7 +115,7 @@ public class ScanGrid implements ScanStrategy {
 
     assert count < pixelTotal;
 
-    final PixelLocation loc = new PixelLocation();
+    final Point loc = new Point();
     if (count == pixelTotal - 1) {
       /* center pixel */
       loc.x = xCenter;
@@ -156,7 +156,7 @@ public class ScanGrid implements ScanStrategy {
    * PixelLocation)
    */
   @Override
-  public boolean getNextScanLocation(PixelLocation p) {
+  public boolean getNextScanLocation(Point p) {
     Range locStatus;
     do {
       locStatus = getGridCoordinates(p);
