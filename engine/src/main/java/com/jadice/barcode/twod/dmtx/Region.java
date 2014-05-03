@@ -1,29 +1,3 @@
-/*
- * This file is part of a java-port of the libdmtx library.
- * 
- * Copyright (C) 2014 levigo solutions gmbh Contact: solutions@levigo.de
- * 
- * 
- * The original library's copyright statement follows:
- * 
- * libdmtx - Data Matrix Encoding/Decoding Library
- * 
- * Copyright (C) 2011 Mike Laughton
- * 
- * This library is free software; you can redistribute it and/or modify it under the terms of the
- * GNU Lesser General Public License as published by the Free Software Foundation; either version
- * 2.1 of the License, or (at your option) any later version.
- * 
- * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser General Public License along with this library;
- * if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- * 
- * Contact: mike@dragonflylogic.com
- */
 package com.jadice.barcode.twod.dmtx;
 
 import static java.lang.Math.abs;
@@ -43,18 +17,6 @@ import com.jadice.barcode.Marker.Feature;
  * @brief DmtxRegion
  */
 public class Region {
-  private enum Direction {
-    DmtxDirNone,
-    DmtxDirUp,
-    DmtxDirLeft,
-    DmtxDirDown,
-    DmtxDirRight,
-    DmtxDirHorizontal,
-    DmtxDirVertical,
-    DmtxDirRightUp,
-    DmtxDirLeftDown,
-  }
-
   /**
    * @struct DmtxFollow
    * @brief DmtxFollow
@@ -174,24 +136,22 @@ public class Region {
 
   public class PointFlow {
     int plane;
-    int arrive;
-    int depart;
-    int mag;
-    PixelLocation loc;
+    Direction arrive;
+    final Direction depart;
+    final int mag;
+    final PixelLocation loc;
 
-    public PointFlow() {
-      // TODO Auto-generated constructor stub
+    public PointFlow(int colorPlane, Direction arrive, Direction depart, int mag, PixelLocation loc) {
+      plane = colorPlane;
+      this.arrive = arrive;
+      this.depart = depart;
+      this.mag = mag;
+      this.loc = loc;
     }
 
     @Override
     public PointFlow clone() {
-      final PointFlow f = new PointFlow();
-      f.plane = plane;
-      f.arrive = arrive;
-      f.depart = depart;
-      f.mag = mag;
-      f.loc = new PixelLocation(loc);
-      return f;
+      return new PointFlow(plane, arrive, depart, mag, loc.clone());
     }
 
 
@@ -200,15 +160,14 @@ public class Region {
      */
     PointFlow findStrongestNeighbor(int sign) {
       final PixelLocation loc = new PixelLocation();
-      final PointFlow flow[] = new PointFlow[8];
 
-      int attempt = sign < 0 ? this.depart : (this.depart + 4) % 8;
+      Direction attempt = sign < 0 ? this.depart : this.depart.opposite();
 
       int occupied = 0;
-      int strongIdx = DatamatrixDecoder.DmtxUndefined;
-      for (int i = 0; i < 8; i++) {
-        loc.x = this.loc.x + Region.dmtxPatternX[i];
-        loc.y = this.loc.y + Region.dmtxPatternY[i];
+      PointFlow strongestFlow = blankEdge;
+      for (Direction direction : Direction.values()) {
+        loc.x = this.loc.x + direction.dx;
+        loc.y = this.loc.y + direction.dy;
 
         final Decode.Cache cache = dec.getCache(loc);
         if (!cache.isValid())
@@ -216,24 +175,23 @@ public class Region {
 
         if (cache.isAnySet(0x80))
           if (++occupied > 2)
-            return dmtxBlankEdge;
+            return blankEdge;
           else
             continue;
 
-        int attemptDiff = abs(attempt - i);
+        int attemptDiff = abs(attempt.ordinal() - direction.ordinal());
         if (attemptDiff > 4)
           attemptDiff = 8 - attemptDiff;
         if (attemptDiff > 1)
           continue;
 
-        flow[i] = getPointFlow(this.plane, loc, i);
+        PointFlow flow = getPointFlow(this.plane, loc, direction);
 
-        if (strongIdx == DatamatrixDecoder.DmtxUndefined || flow[i].mag > flow[strongIdx].mag
-            || flow[i].mag == flow[strongIdx].mag && (i & 0x01) != 0)
-          strongIdx = i;
+        if (flow.mag > strongestFlow.mag || flow.mag == strongestFlow.mag && direction.isManhattan())
+          strongestFlow = flow;
       }
 
-      return strongIdx == DatamatrixDecoder.DmtxUndefined ? dmtxBlankEdge : flow[strongIdx];
+      return strongestFlow;
     }
   }
 
@@ -346,16 +304,60 @@ public class Region {
    */
   private final Matrix3 fit2raw = new Matrix3();
 
-  private static final int NEIGHTBOR_NONE = 8;
+  private static final Direction NEIGHTBOR_NONE = null;
 
   public static final int DmtxSymbolSquareCount = 24;
   public static final int DmtxSymbolRectCount = 6;
+
+  // Compass directions
+  // 6 5 4
+  // 7 X 3
+  // 0 1 2
+  private enum Direction {
+    // @formatter:off
+    SW(-1, -1,  0), 
+    S ( 0, -1,  1), 
+    SE( 1, -1,  2), 
+    E ( 1,  0,  1), 
+    NE( 1,  1,  0),
+    N ( 0,  1, -1),
+    NW(-1,  1, -2),
+    W (-1,  0, -1);
+    // @formatter:on
+
+    public final int dx;
+    public final int dy;
+    public final int coefficient;
+    private Direction opposite;
+
+    private Direction(int dx, int dy, int coefficient) {
+      this.dx = dx;
+      this.dy = dy;
+      this.coefficient = coefficient;
+    }
+
+    public Direction opposite() {
+      if (opposite == null)
+        opposite = get(ordinal() + 4);
+      return opposite;
+    }
+
+    public boolean isManhattan() {
+      return (ordinal() & 1) != 0;
+    }
+
+    public static Direction get(int direction) {
+      return values()[direction % 8];
+    }
+  }
+
   public static final int dmtxPatternX[] = {
       -1, 0, 1, 1, 1, 0, -1, -1
   };
   public static final int dmtxPatternY[] = {
       -1, -1, -1, 0, 1, 1, 1, 0
   };
+
   static int rHvX[] = {
       256, 256, 256, 256, 255, 255, 255, 254, 254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 243, 242, 241, 239,
       237, 236, 234, 232, 230, 228, 226, 224, 222, 219, 217, 215, 212, 210, 207, 204, 202, 199, 196, 193, 190, 187,
@@ -379,6 +381,7 @@ public class Region {
   };
 
   private final Decode dec;
+
   public static final int DmtxModuleOff = 0x00;
   public static final int DmtxModuleOnRed = 0x01;
   public static final int DmtxModuleOnGreen = 0x02;
@@ -389,21 +392,12 @@ public class Region {
   public static final int DmtxModuleAssigned = 0x10;
   public static final int DmtxModuleVisited = 0x20;
   public static final int DmtxModuleData = 0x40;
+
   static final int DMTX_HOUGH_RES = 180;
 
   private final DiagnosticSettings diag;
 
-  final PointFlow dmtxBlankEdge = new PointFlow() {
-    {
-      mag = DatamatrixDecoder.DmtxUndefined;
-      loc = new PixelLocation();
-      loc.x = -1;
-      loc.y = -1;
-    }
-  };
-  static final int coefficient[] = {
-      0, 1, 2, 1, 0, -1, -2, -1
-  };
+  final PointFlow blankEdge = new PointFlow(0, null, null, Integer.MIN_VALUE, new PixelLocation());
 
   public Region(Decode dec, DiagnosticSettings diag) {
     this.dec = dec;
@@ -411,11 +405,13 @@ public class Region {
   }
 
   static void CALLBACK_MATRIX(Region reg) {
-    // FIXME: append to diag
+    // TODO Auto-generated method stub
+
   }
 
   static void CALLBACK_POINT_PLOT(PixelLocation loc, int i, int j, int k) {
-    // FIXME: append to diag
+    // TODO Auto-generated method stub
+
   }
 
   /**
@@ -443,7 +439,7 @@ public class Region {
     else
       symbolShape = SymbolSize.ShapeAuto;
 
-    if (dec.getEdgeMax() != DatamatrixDecoder.DmtxUndefined) {
+    if (dec.getEdgeMax() != LibDMTX.DmtxUndefined) {
       if (symbolShape == SymbolSize.RectAuto)
         maxDiagonal = (int) (1.23 * dec.getEdgeMax() + 0.5); /*
                                                               * sqrt(5/4) + 10%
@@ -451,7 +447,7 @@ public class Region {
       else
         maxDiagonal = (int) (1.56 * dec.getEdgeMax() + 0.5); /* sqrt(2) + 10% */
     } else
-      maxDiagonal = DatamatrixDecoder.DmtxUndefined;
+      maxDiagonal = LibDMTX.DmtxUndefined;
 
     /* Follow to end in both directions */
     if (!trailBlazeContinuous(begin, maxDiagonal) || this.stepsTotal < 40) {
@@ -460,7 +456,7 @@ public class Region {
     }
 
     /* Filter out region candidates that are smaller than expected */
-    if (dec.getEdgeMin() != DatamatrixDecoder.DmtxUndefined) {
+    if (dec.getEdgeMin() != LibDMTX.DmtxUndefined) {
       scale = dec.getScale();
 
       if (symbolShape == SymbolSize.SquareAuto)
@@ -474,7 +470,7 @@ public class Region {
       }
     }
 
-    line1x = findBestSolidLine(0, 0, +1, DatamatrixDecoder.DmtxUndefined);
+    line1x = findBestSolidLine(0, 0, +1, LibDMTX.DmtxUndefined);
     if (line1x.mag < 5) {
       TrailClear(0x40);
       return false;
@@ -812,9 +808,9 @@ public class Region {
    * \param xOrigin \param yOrigin \param mapWidth \param mapHeight \param dir \return void
    */
   private void tallyModuleJumps(int tally[][], int xOrigin, int yOrigin, int mapWidth, int mapHeight, Direction dir) {
-    assert (dir == Direction.DmtxDirUp || dir == Direction.DmtxDirLeft || dir == Direction.DmtxDirDown || dir == Direction.DmtxDirRight);
+    assert (dir == Direction.N || dir == Direction.W || dir == Direction.S || dir == Direction.E);
 
-    final int travelStep = (dir == Direction.DmtxDirUp || dir == Direction.DmtxDirRight) ? 1 : -1;
+    final int travelStep = (dir == Direction.N || dir == Direction.E) ? 1 : -1;
 
     /*
      * Abstract row and column progress using pointers to allow grid traversal in all 4 directions
@@ -827,7 +823,7 @@ public class Region {
     int lineStop;
     int travelStart;
     int travelStop;
-    if (dir == Direction.DmtxDirLeft || dir == Direction.DmtxDirRight) {
+    if (dir == Direction.W || dir == Direction.E) {
       line = symbolRow;
       travel = symbolCol;
       extent = mapWidth;
@@ -836,7 +832,7 @@ public class Region {
       travelStart = (travelStep == 1) ? xOrigin - 1 : xOrigin + mapWidth;
       travelStop = (travelStep == 1) ? xOrigin + mapWidth : xOrigin - 1;
     } else {
-      assert (dir == Direction.DmtxDirUp || dir == Direction.DmtxDirDown);
+      assert (dir == Direction.N || dir == Direction.S);
       line = symbolCol;
       travel = symbolRow;
       extent = mapHeight;
@@ -920,7 +916,7 @@ public class Region {
     int colorOffAvg, bestColorOffAvg;
     int contrast, bestContrast;
     dec.getImage();
-    bestSizeIdx = DatamatrixDecoder.DmtxUndefined;
+    bestSizeIdx = LibDMTX.DmtxUndefined;
     bestContrast = 0;
     bestColorOnAvg = bestColorOffAvg = 0;
 
@@ -981,7 +977,7 @@ public class Region {
     }
 
     /* If no sizes produced acceptable contrast then call it quits */
-    if (bestSizeIdx == DatamatrixDecoder.DmtxUndefined || bestContrast < 20)
+    if (bestSizeIdx == LibDMTX.DmtxUndefined || bestContrast < 20)
       return false;
 
     this.sizeIdx = SymbolSize.values()[bestSizeIdx];
@@ -994,41 +990,41 @@ public class Region {
     this.mappingCols = this.sizeIdx.mappingMatrixCols;
 
     /* Tally jumps on horizontal calibration bar to verify sizeIdx */
-    jumpCount = countJumpTally(0, this.symbolRows - 1, Direction.DmtxDirRight);
+    jumpCount = countJumpTally(0, this.symbolRows - 1, Direction.E);
     errors = Math.abs(1 + jumpCount - this.symbolCols);
     if (jumpCount < 0 || errors > 2)
       return false;
 
     /* Tally jumps on vertical calibration bar to verify sizeIdx */
-    jumpCount = countJumpTally(this.symbolCols - 1, 0, Direction.DmtxDirUp);
+    jumpCount = countJumpTally(this.symbolCols - 1, 0, Direction.N);
     errors = Math.abs(1 + jumpCount - this.symbolRows);
     if (jumpCount < 0 || errors > 2)
       return false;
 
     /* Tally jumps on horizontal finder bar to verify sizeIdx */
-    errors = countJumpTally(0, 0, Direction.DmtxDirRight);
+    errors = countJumpTally(0, 0, Direction.E);
     if (jumpCount < 0 || errors > 2)
       return false;
 
     /* Tally jumps on vertical finder bar to verify sizeIdx */
-    errors = countJumpTally(0, 0, Direction.DmtxDirUp);
+    errors = countJumpTally(0, 0, Direction.N);
     if (errors < 0 || errors > 2)
       return false;
 
     /* Tally jumps on surrounding whitespace, else fail */
-    errors = countJumpTally(0, -1, Direction.DmtxDirRight);
+    errors = countJumpTally(0, -1, Direction.E);
     if (errors < 0 || errors > 2)
       return false;
 
-    errors = countJumpTally(-1, 0, Direction.DmtxDirUp);
+    errors = countJumpTally(-1, 0, Direction.N);
     if (errors < 0 || errors > 2)
       return false;
 
-    errors = countJumpTally(0, this.symbolRows, Direction.DmtxDirRight);
+    errors = countJumpTally(0, this.symbolRows, Direction.E);
     if (errors < 0 || errors > 2)
       return false;
 
-    errors = countJumpTally(this.symbolCols, 0, Direction.DmtxDirUp);
+    errors = countJumpTally(this.symbolCols, 0, Direction.N);
     if (errors < 0 || errors > 2)
       return false;
 
@@ -1050,9 +1046,9 @@ public class Region {
     int color;
 
     assert xStart == 0 || yStart == 0;
-    assert dir == Direction.DmtxDirRight || dir == Direction.DmtxDirUp;
+    assert dir == Direction.E || dir == Direction.N;
 
-    if (dir == Direction.DmtxDirRight)
+    if (dir == Direction.E)
       xInc = 1;
     else
       yInc = 1;
@@ -1065,8 +1061,8 @@ public class Region {
     color = this.readModuleColor(yStart, xStart, this.sizeIdx, this.flowBegin.plane);
     tModule = darkOnLight ? this.offColor - color : color - this.offColor;
 
-    for (x = xStart + xInc, y = yStart + yInc; dir == Direction.DmtxDirRight && x < this.symbolCols
-        || dir == Direction.DmtxDirUp && y < this.symbolRows; x += xInc, y += yInc) {
+    for (x = xStart + xInc, y = yStart + yInc; dir == Direction.E && x < this.symbolCols || dir == Direction.N
+        && y < this.symbolRows; x += xInc, y += yInc) {
 
       tPrev = tModule;
       color = this.readModuleColor(y, x, this.sizeIdx, this.flowBegin.plane);
@@ -1126,12 +1122,12 @@ public class Region {
     return follow;
   }
 
-  /**
-   * vaiiiooo -------- 0x80 v = visited bit 0x40 a = assigned bit 0x38 u = 3 bits points upstream
-   * 0-7 0x07 d = 3 bits points downstream 0-7
-   * 
-   * @return
-   */
+  // vauuuddd
+  // --------
+  // 0x80 v = visited bit
+  // 0x40 a = assigned bit
+  // 0x38 u = 3 bits points upstream 0-7
+  // 0x07 d = 3 bits points downstream 0-7
   private boolean trailBlazeContinuous(PointFlow flowBegin, int maxDiagonal) {
     int posAssigns, negAssigns, clears;
     int sign;
@@ -1155,7 +1151,7 @@ public class Region {
       cache = cacheBeg;
 
       for (steps = 0;; steps++) {
-        if (maxDiagonal != DatamatrixDecoder.DmtxUndefined
+        if (maxDiagonal != LibDMTX.DmtxUndefined
             && (boundMax.x - boundMin.x > maxDiagonal || boundMax.y - boundMin.y > maxDiagonal))
           break;
 
@@ -1178,7 +1174,7 @@ public class Region {
          * vector here is the arrival vector of the next location. Upstream flow uses the opposite
          * rule.
          */
-        cache.set(sign < 0 ? flowNext.arrive : flowNext.arrive << 3);
+        cache.set(sign < 0 ? flowNext.arrive.ordinal() : flowNext.arrive.ordinal() << 3);
 
         /* Mark known direction for next location */
         /*
@@ -1187,7 +1183,7 @@ public class Region {
         /*
          * If testing upstream (sign > 0) then next downstream is opposite of next arrival
          */
-        cacheNext.setTo(sign < 0 ? (flowNext.arrive + 4) % 8 << 3 : (flowNext.arrive + 4) % 8);
+        cacheNext.setTo(sign < 0 ? flowNext.arrive.opposite().ordinal() << 3 : flowNext.arrive.opposite().ordinal());
         cacheNext.set(0x80 | 0x40); // Mark location
 
         // as visited
@@ -1229,7 +1225,7 @@ public class Region {
     assert posAssigns + negAssigns == clears - 1;
 
     /* XXX clean this up ... redundant test above */
-    if (maxDiagonal != DatamatrixDecoder.DmtxUndefined
+    if (maxDiagonal != LibDMTX.DmtxUndefined
         && (boundMax.x - boundMin.x > maxDiagonal || boundMax.y - boundMin.y > maxDiagonal))
       return false;
 
@@ -1274,7 +1270,7 @@ public class Region {
     do {
       if (onEdge) {
         flowNext = flow.findStrongestNeighbor(streamDir);
-        if (flowNext.mag == DatamatrixDecoder.DmtxUndefined)
+        if (flowNext.mag == LibDMTX.DmtxUndefined)
           break;
 
         line.clone().getStep(flowNext.loc, travel, outward);
@@ -1405,7 +1401,7 @@ public class Region {
 
     /* Predetermine which angles to test */
     for (i = 0; i < DMTX_HOUGH_RES; i++)
-      if (houghAvoid == DatamatrixDecoder.DmtxUndefined)
+      if (houghAvoid == LibDMTX.DmtxUndefined)
         houghTest[i] = 1;
       else {
         houghMin = (houghAvoid + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES;
@@ -1488,7 +1484,7 @@ public class Region {
 
     /* Predetermine which angles to test */
     for (i = 0; i < DMTX_HOUGH_RES; i++)
-      if (houghAvoid == DatamatrixDecoder.DmtxUndefined)
+      if (houghAvoid == LibDMTX.DmtxUndefined)
         houghTest[i] = 1;
       else {
         houghMin = (houghAvoid + DMTX_HOUGH_RES / 6) % DMTX_HOUGH_RES;
@@ -1840,10 +1836,10 @@ public class Region {
 
         for (int i = 0; i < tally.length; i++)
           tally[i] = new int[24];
-        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.DmtxDirUp);
-        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.DmtxDirLeft);
-        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.DmtxDirDown);
-        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.DmtxDirRight);
+        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.N);
+        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.W);
+        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.S);
+        tallyModuleJumps(tally, xOrigin, yOrigin, mapWidth, mapHeight, Direction.E);
 
         int mapCol;
         /* Decide module status based on final tallies */
@@ -1874,7 +1870,7 @@ public class Region {
     final int channelCount = 1; // FIXME dec.getImage().getChannelCount();
 
     /* Find whether red, green, or blue shows the strongest edge */
-    PointFlow flow = dmtxBlankEdge;
+    PointFlow flow = blankEdge;
     for (int channel = 0; channel < channelCount; channel++) {
       PointFlow f = getPointFlow(channel, loc, Region.NEIGHTBOR_NONE);
       if (f.mag > flow.mag)
@@ -1882,21 +1878,21 @@ public class Region {
     }
 
     if (flow.mag < 10)
-      return dmtxBlankEdge;
+      return blankEdge;
 
     final PointFlow flowPos = flow.findStrongestNeighbor(+1);
     final PointFlow flowNeg = flow.findStrongestNeighbor(-1);
     if (flowPos.mag != 0 && flowNeg.mag != 0) {
       final PointFlow flowPosBack = flowPos.findStrongestNeighbor(-1);
       final PointFlow flowNegBack = flowNeg.findStrongestNeighbor(+1);
-      if (flowPos.arrive == (flowPosBack.arrive + 4) % 8 && flowNeg.arrive == (flowNegBack.arrive + 4) % 8) {
+      if (flowPos.arrive == flowPosBack.arrive.opposite() && flowNeg.arrive == flowNegBack.arrive.opposite()) {
         flow.arrive = Region.NEIGHTBOR_NONE;
         Region.CALLBACK_POINT_PLOT(flow.loc, 1, 1, 1);
         return flow;
       }
     }
 
-    return dmtxBlankEdge;
+    return blankEdge;
   }
 
   Shape getShape() {
@@ -1938,22 +1934,21 @@ public class Region {
    *
    *
    */
-  PointFlow getPointFlow(int colorPlane, PixelLocation loc, int arrive) {
-    final int mag[] = new int[4];
-    final int colorPattern[] = new int[8];
-
+  PointFlow getPointFlow(int colorPlane, PixelLocation loc, Direction arrive) {
     // Sample grid at pattern positions:
     // 6 5 4
     // 7 L 3
     // 0 1 2
+    final int colorPattern[] = new int[8];
     for (int patternIdx = 0; patternIdx < 8; patternIdx++) {
       try {
+        Direction c = Direction.get(patternIdx);
         colorPattern[patternIdx] = dec.getPixelValue( //
-            loc.x + Region.dmtxPatternX[patternIdx], //
-            loc.y + Region.dmtxPatternY[patternIdx], //
+            loc.x + c.dx, //
+            loc.y + c.dy, //
             colorPlane);
       } catch (final OutOfRangeException e) {
-        return dmtxBlankEdge;
+        return blankEdge;
       }
     }
 
@@ -1966,20 +1961,23 @@ public class Region {
     //
     // Compass:    0            1            2            3
     // @formatter:on
-    int compassMax = 0;
+    Direction compassMax = null;
+    int magMax = Integer.MIN_VALUE;
     for (int compass = 0; compass < 4; compass++) {
+      int mag = 0;
+
       /* Add portion from each position in the convolution matrix pattern */
       for (int patternIdx = 0; patternIdx < 8; patternIdx++) {
-        int coefficientIdx = (patternIdx - compass + 8) % 8;
-        if (coefficient[coefficientIdx] == 0)
-          continue;
-
-        mag[compass] += colorPattern[patternIdx] * coefficient[coefficientIdx];
+        Direction c = Direction.get(patternIdx - compass + 8);
+        if (c.coefficient != 0)
+          mag += colorPattern[patternIdx] * c.coefficient;
       }
 
       /* Identify strongest compass flow */
-      if (compass != 0 && Math.abs(mag[compass]) > Math.abs(mag[compassMax]))
-        compassMax = compass;
+      if (abs(mag) > abs(magMax)) {
+        compassMax = Direction.get(compass);
+        magMax = mag;
+      }
     }
 
     // @formatter:off
@@ -1988,13 +1986,6 @@ public class Region {
     // 6  X  1
     // 7  8  0
     // @formatter:on
-    final PointFlow flow = new PointFlow();
-    flow.plane = colorPlane;
-    flow.arrive = arrive;
-    flow.depart = mag[compassMax] > 0 ? compassMax + 4 : compassMax;
-    flow.mag = Math.abs(mag[compassMax]);
-    flow.loc = loc.clone();
-
-    return flow;
+    return new PointFlow(colorPlane, arrive, magMax > 0 ? compassMax.opposite() : compassMax, abs(magMax), loc.clone());
   }
 }

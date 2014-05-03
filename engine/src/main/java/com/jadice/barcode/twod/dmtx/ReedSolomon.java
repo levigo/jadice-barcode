@@ -1,29 +1,3 @@
-/*
- * This file is part of a java-port of the libdmtx library.
- * 
- * Copyright (C) 2014 levigo solutions gmbh Contact: solutions@levigo.de
- * 
- * 
- * The original library's copyright statement follows:
- * 
- * libdmtx - Data Matrix Encoding/Decoding Library
- * 
- * Copyright (C) 2011 Mike Laughton
- * 
- * This library is free software; you can redistribute it and/or modify it under the terms of the
- * GNU Lesser General Public License as published by the Free Software Foundation; either version
- * 2.1 of the License, or (at your option) any later version.
- * 
- * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser General Public License along with this library;
- * if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- * 
- * Contact: mike@dragonflylogic.com
- */
 package com.jadice.barcode.twod.dmtx;
 
 import static java.lang.Math.max;
@@ -139,7 +113,7 @@ public class ReedSolomon {
    */
   private static int dmtxGetBlockDataSize(SymbolSize size, int blockIdx) {
     if (size.symbolDataWords < 1 || size.interleavedBlocks < 1)
-      return DatamatrixDecoder.DmtxUndefined;
+      return LibDMTX.DmtxUndefined;
 
     int count = size.symbolDataWords / size.interleavedBlocks;
 
@@ -156,7 +130,7 @@ public class ReedSolomon {
     int idxBeg, idxEnd;
 
     if (dataWords <= 0)
-      return DatamatrixDecoder.DmtxUndefined;
+      return LibDMTX.DmtxUndefined;
 
     if (sizeIdxRequest == SymbolSize.SquareAuto || sizeIdxRequest == SymbolSize.RectAuto) {
       if (sizeIdxRequest == SymbolSize.SquareAuto) {
@@ -172,12 +146,12 @@ public class ReedSolomon {
           break;
 
       if (sizeIdx == idxEnd)
-        return DatamatrixDecoder.DmtxUndefined;
+        return LibDMTX.DmtxUndefined;
     } else
       sizeIdx = sizeIdxRequest.ordinal();
 
     if (dataWords > SymbolSize.values()[sizeIdx].symbolDataWords)
-      return DatamatrixDecoder.DmtxUndefined;
+      return LibDMTX.DmtxUndefined;
 
     return sizeIdx;
   }

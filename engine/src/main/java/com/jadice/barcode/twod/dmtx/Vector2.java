@@ -1,29 +1,3 @@
-/*
- * This file is part of a java-port of the libdmtx library.
- * 
- * Copyright (C) 2014 levigo solutions gmbh Contact: solutions@levigo.de
- * 
- * 
- * The original library's copyright statement follows:
- * 
- * libdmtx - Data Matrix Encoding/Decoding Library
- * 
- * Copyright (C) 2011 Mike Laughton
- * 
- * This library is free software; you can redistribute it and/or modify it under the terms of the
- * GNU Lesser General Public License as published by the Free Software Foundation; either version
- * 2.1 of the License, or (at your option) any later version.
- * 
- * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser General Public License along with this library;
- * if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- * 
- * Contact: mike@dragonflylogic.com
- */
 package com.jadice.barcode.twod.dmtx;
 
 
@@ -118,7 +92,7 @@ class Vector2 {
 
     mag = magnitude();
 
-    if (mag <= DatamatrixDecoder.DmtxAlmostZero)
+    if (mag <= LibDMTX.DmtxAlmostZero)
       return -1.0; /* XXX this doesn't look clean */
 
     scale(1 / mag);
@@ -161,7 +135,7 @@ class Vector2 {
    */
   void multiply(Matrix3 m, Vector2 vOut) {
     double w = this.x * m.m[0][2] + this.y * m.m[1][2] + m.m[2][2];
-    if (Math.abs(w) <= DatamatrixDecoder.DmtxAlmostZero) {
+    if (Math.abs(w) <= LibDMTX.DmtxAlmostZero) {
       vOut.x = Double.MAX_VALUE;
       vOut.y = Double.MAX_VALUE;
       throw new IllegalStateException();
