@@ -1,8 +1,8 @@
 package com.jadice.barcode.twod.dmtx;
 
-import com.jadice.barcode.Decoder;
-import com.jadice.barcode.Settings;
-import com.jadice.barcode.Symbology;
+import com.levigo.barcode.Decoder;
+import com.levigo.barcode.Settings;
+import com.levigo.barcode.Symbology;
 
 public class Datamatrix implements Symbology {
 

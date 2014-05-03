@@ -2,10 +2,10 @@ package com.jadice.barcode.twod.dmtx;
 
 import java.awt.Point;
 
-import com.jadice.barcode.DiagnosticSettings;
-import com.jadice.barcode.Options;
-import com.jadice.barcode.Marker.Feature;
-import com.jadice.barcode.grid.Grid;
+import com.levigo.barcode.DiagnosticSettings;
+import com.levigo.barcode.Marker.Feature;
+import com.levigo.barcode.Options;
+import com.levigo.barcode.grid.Grid;
 
 public class ScanGrid implements ScanStrategy {
   public enum Range {

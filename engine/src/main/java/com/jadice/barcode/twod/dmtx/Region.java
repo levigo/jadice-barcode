@@ -8,9 +8,9 @@ import java.awt.Point;
 import java.awt.Shape;
 import java.awt.geom.GeneralPath;
 
-import com.jadice.barcode.DiagnosticSettings;
-import com.jadice.barcode.Options;
-import com.jadice.barcode.Marker.Feature;
+import com.levigo.barcode.DiagnosticSettings;
+import com.levigo.barcode.Marker.Feature;
+import com.levigo.barcode.Options;
 
 /**
  * @struct DmtxRegion
@@ -154,7 +154,6 @@ public class Region {
       return new PointFlow(plane, arrive, depart, mag, loc.clone());
     }
 
-
     /**
      * 
      */
@@ -192,6 +191,11 @@ public class Region {
       }
 
       return strongestFlow;
+    }
+
+    @Override
+    public String toString() {
+      return "PointFlow [plane=" + plane + ", from " + arrive + " to " + depart + ", mag=" + mag + ", loc=" + loc + "]";
     }
   }
 
@@ -1147,7 +1151,7 @@ public class Region {
 
     posAssigns = negAssigns = 0;
     for (sign = 1; sign >= -1; sign -= 2) {
-      flow = flowBegin.clone();
+      flow = flowBegin;
       cache = cacheBeg;
 
       for (steps = 0;; steps++) {
@@ -1164,6 +1168,9 @@ public class Region {
         // flow.arrive, flow.depart, flow.mag, flow.plane, flow.loc.X, flow.loc.Y);
         if (flowNext.mag < 50)
           break;
+
+        if (diag.isMarkupEnabled())
+          diag.add(sign > 0 ? Feature.START : Feature.STOP, new Point(flowNext.loc.x, dec.yMax - flowNext.loc.y));
 
         /* Get the neighbor's cache location */
         cacheNext = dec.getCache(flowNext.loc);
@@ -1194,7 +1201,7 @@ public class Region {
         else
           negAssigns++;
         cache = cacheNext;
-        flow = flowNext.clone();
+        flow = flowNext;
 
         if (flow.loc.x > boundMax.x)
           boundMax.x = flow.loc.x;
@@ -1940,12 +1947,11 @@ public class Region {
     // 7 L 3
     // 0 1 2
     final int colorPattern[] = new int[8];
-    for (int patternIdx = 0; patternIdx < 8; patternIdx++) {
+    for (Direction d : Direction.values()) {
       try {
-        Direction c = Direction.get(patternIdx);
-        colorPattern[patternIdx] = dec.getPixelValue( //
-            loc.x + c.dx, //
-            loc.y + c.dy, //
+        colorPattern[d.ordinal()] = dec.getPixelValue( //
+            loc.x + d.dx, //
+            loc.y + d.dy, //
             colorPlane);
       } catch (final OutOfRangeException e) {
         return blankEdge;
@@ -1960,6 +1966,11 @@ public class Region {
     //          0  1  2     -1  0  1     -2 -1  0     -1 -2 -1
     //
     // Compass:    0            1            2            3
+    //
+    // 255 255 000
+    // 255 XXX 000
+    // 255 255 000
+    // 
     // @formatter:on
     Direction compassMax = null;
     int magMax = Integer.MIN_VALUE;
@@ -1986,6 +1997,7 @@ public class Region {
     // 6  X  1
     // 7  8  0
     // @formatter:on
-    return new PointFlow(colorPlane, arrive, magMax > 0 ? compassMax.opposite() : compassMax, abs(magMax), loc.clone());
+    Direction depart = magMax > 0 ? compassMax.opposite() : compassMax;
+    return new PointFlow(colorPlane, arrive, depart, abs(magMax), loc.clone());
   }
 }

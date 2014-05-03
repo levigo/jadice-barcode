@@ -3,8 +3,8 @@ package com.jadice.barcode.twod.dmtx;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
-import com.jadice.barcode.Options;
-import com.jadice.barcode.grid.Grid;
+import com.levigo.barcode.Options;
+import com.levigo.barcode.grid.Grid;
 
 public class Decode {
   public class Cache {
