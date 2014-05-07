@@ -30,6 +30,9 @@ import java.awt.geom.AffineTransform;
  * Markers are used to convey diagnostic information about the decoding process.
  */
 public class Marker {
+  /**
+   * A Feature specifies the particular type of marker.
+   */
   public enum Feature {
     START(Color.BLUE), //
     START_EDGE(new Color(100, 100, 255)), //
