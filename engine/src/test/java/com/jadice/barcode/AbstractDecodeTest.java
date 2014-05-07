@@ -34,7 +34,7 @@ import com.jadice.barcode.Detector;
 import com.jadice.barcode.Options;
 import com.jadice.barcode.Result;
 import com.jadice.barcode.Symbology;
-import com.jadice.barcode.grid.j2d.BufferedImageLuminanceSource;
+import com.jadice.barcode.j2d.BufferedImageLuminanceSource;
 
 public abstract class AbstractDecodeTest {
   private final String imageName;

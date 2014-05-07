@@ -71,13 +71,12 @@ import javax.swing.filechooser.FileFilter;
 
 import com.jadice.barcode.Detector;
 import com.jadice.barcode.DiagnosticSettings;
+import com.jadice.barcode.DiagnosticSettings.TransientMarkerListener;
 import com.jadice.barcode.Options;
 import com.jadice.barcode.Result;
-import com.jadice.barcode.DiagnosticSettings.TransientMarkerListener;
 import com.jadice.barcode.grid.BinaryGrid;
-import com.jadice.barcode.grid.j2d.BufferedImageLuminanceSource;
-import com.jadice.barcode.grid.j2d.Java2DResultPainter;
-import com.jadice.barcode.grid.j2d.Utils;
+import com.jadice.barcode.j2d.BufferedImageLuminanceSource;
+import com.jadice.barcode.j2d.Java2DUtils;
 
 /**
  * A simple GUI that allows barcode testing. In contrast to <code>ViewerBarcodeDemo</code> this GUI
@@ -148,13 +147,13 @@ public class BarcodeTest extends JFrame {
 
       try {
         if (null != diagSettings) {
-          Java2DResultPainter.paintDebugMarkers(g2, diagSettings.getDebugMarkers(),
+          Java2DUtils.paintDebugMarkers(g2, diagSettings.getDebugMarkers(),
               debugAnnotationSelector.getEnabledDebugMarkers());
-          Java2DResultPainter.paintDebugMarkers(g2, diagSettings.getTransientMarkers(),
+          Java2DUtils.paintDebugMarkers(g2, diagSettings.getTransientMarkers(),
               debugAnnotationSelector.getEnabledDebugMarkers());
         }
         if (null != results) {
-          Java2DResultPainter.paintCodeMarkers(g2, results);
+          Java2DUtils.paintCodeMarkers(g2, results);
         }
       } catch (ConcurrentModificationException e) {
         // just re-try
@@ -483,7 +482,7 @@ public class BarcodeTest extends JFrame {
     BinaryGrid binaryGrid = Detector.prepareBinaryGrid(options, src);
 
     if (binarizedImageBox != null && binarizedImageBox.isSelected())
-      resultPane.setBinaryImage(Utils.createBinaryGridImage(binaryGrid));
+      resultPane.setBinaryImage(Java2DUtils.createBinaryGridImage(binaryGrid));
     else
       resultPane.setBinaryImage(null);
 

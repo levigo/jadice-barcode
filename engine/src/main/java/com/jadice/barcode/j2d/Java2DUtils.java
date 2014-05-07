@@ -17,7 +17,7 @@
  * 
  * Contact: solutions@levigo.de
  */
-package com.jadice.barcode.grid.j2d;
+package com.jadice.barcode.j2d;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -26,20 +26,29 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
 import java.util.Collection;
 import java.util.Set;
 
 import com.jadice.barcode.Marker;
 import com.jadice.barcode.Marker.Feature;
 import com.jadice.barcode.Result;
+import com.jadice.barcode.grid.BinaryGrid;
 
 /**
- * A collection of static utility methods used to paint {@link Result}s and debug-{@link Marker}s
- * into a Java2D {@link Graphics2D} context.
+ * A collection of static utility methods used in conjunction with Java2D-based environments.
  */
-public class Java2DResultPainter {
+public class Java2DUtils {
   private static final int DEBUG_ALPHA = 200;
 
+  /**
+   * Paint debug-{@link Marker}s into a Java2D {@link Graphics2D} context.
+   * 
+   * @param g2 the target graphics context
+   * @param debugMarkers the collection of debug markers
+   * @param enabledFeatures the {@link Feature}s to paint
+   */
   public static void paintDebugMarkers(Graphics2D g2, Collection<Marker> debugMarkers, Set<Feature> enabledFeatures) {
     // create array of enabled flags for quick access
     boolean enableFlags[] = new boolean[Feature.values().length];
@@ -68,6 +77,12 @@ public class Java2DResultPainter {
   private static final Color VALID_CODE_BACKGROUND = new Color(0, 255, 0, 240);
   private static final Color INVALID_CODE_BACKGROUND = new Color(255, 0, 0, 240);
 
+  /**
+   * Paint {@link Result}s ainto a Java2D {@link Graphics2D} context.
+   * 
+   * @param g2 the graphics context
+   * @param results the {@link Result}s to paint
+   */
   public static void paintCodeMarkers(Graphics2D g2, Collection<Result> results) {
     g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
@@ -96,5 +111,28 @@ public class Java2DResultPainter {
 
       g2.setTransform(current);
     }
+  }
+
+  /**
+   * Create a Java2D {@link BufferedImage} from a given {@link BinaryGrid}. This method is designed
+   * for verification and debugging purposes.
+   * 
+   * @param grid
+   * @return
+   */
+  public static BufferedImage createBinaryGridImage(BinaryGrid grid) {
+    BufferedImage img = new BufferedImage(grid.getWidth(), grid.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+
+    extractPixels(grid, 0, 0, grid.getWidth(), grid.getHeight(),
+        ((DataBufferByte) img.getRaster().getDataBuffer()).getData());
+
+    return img;
+  }
+
+  private static void extractPixels(BinaryGrid grid, int x0, int y0, int width, int height, byte dst[]) {
+    for (int y = 0; y < height; y++)
+      for (int x = 0; x < width; x++)
+        if (!grid.samplePixel(x, y))
+          dst[(y + y0) * width + x + x0] = (byte) 0xff;
   }
 }

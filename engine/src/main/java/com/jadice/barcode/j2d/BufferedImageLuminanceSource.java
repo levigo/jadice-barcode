@@ -17,7 +17,7 @@
  * 
  * Contact: solutions@levigo.de
  */
-package com.jadice.barcode.grid.j2d;
+package com.jadice.barcode.j2d;
 
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
