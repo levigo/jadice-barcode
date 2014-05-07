@@ -37,14 +37,13 @@ import com.jadice.barcode.BaseSettings;
 import com.jadice.barcode.BinaryDecoder;
 import com.jadice.barcode.DiagnosticSettings;
 import com.jadice.barcode.Marker;
+import com.jadice.barcode.Marker.Feature;
 import com.jadice.barcode.Options;
 import com.jadice.barcode.Result;
-import com.jadice.barcode.Marker.Feature;
 import com.jadice.barcode.grid.BinaryGrid;
 
 /**
- * Abstract implementation of a barcode detector for a linear (1D) code.
- * 
+ * Abstract implementation of a bar code detector for a linear (1D) code.
  */
 public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecoder {
 

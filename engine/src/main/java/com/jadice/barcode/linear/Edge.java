@@ -36,6 +36,7 @@ import com.jadice.barcode.grid.BinaryGrid;
 import com.jadice.barcode.linear.OneDDecoder.EdgeDetection;
 
 /**
+ * A start of stop edge of a linear (1D) bar code.
  */
 public class Edge {
   private static final Logger logger = Logger.getLogger(Edge.class);
@@ -57,6 +58,7 @@ public class Edge {
   private final Rectangle confidenceRectangle;
 
   /** The fuzz factor (i.e. tolerance) with which to accept hits */
+  @SuppressWarnings("unused")
   private int quietZoneWidth = 0;
 
   /** Whether this is a start/stop edge */

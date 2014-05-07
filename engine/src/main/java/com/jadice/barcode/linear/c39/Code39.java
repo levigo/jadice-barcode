@@ -24,6 +24,9 @@ import com.jadice.barcode.Decoder;
 import com.jadice.barcode.Settings;
 import com.jadice.barcode.Symbology;
 
+/**
+ * A Symbology for Code 39 bar codes.
+ */
 public class Code39 implements Symbology {
 
   @Override
