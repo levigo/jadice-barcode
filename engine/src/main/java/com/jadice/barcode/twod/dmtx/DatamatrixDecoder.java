@@ -27,6 +27,7 @@
 package com.jadice.barcode.twod.dmtx;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.jadice.barcode.LuminanceDecoder;
@@ -52,7 +53,7 @@ public class DatamatrixDecoder implements LuminanceDecoder {
   }
 
   @Override
-  public List<Result> detect(LuminanceGrid grid) {
+  public Collection<Result> detect(LuminanceGrid grid) {
     // FIXME: support more options
     ScanGrid scanGrid = new ScanGrid(grid, options);
     scanGrid.setMinExtent(options.getOptions(DatamatrixSettings.class).getMinExtent());

@@ -22,6 +22,7 @@ package com.jadice.barcode;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -106,7 +107,7 @@ public class Detector {
    * @param transform
    * @param r
    */
-  private static void merge(List<Result> src, AffineTransform transform, List<Result> dst) {
+  private static void merge(Collection<Result> src, AffineTransform transform, Collection<Result> dst) {
     for (final Result c : src) {
       c.transform(transform);
       dst.add(c);

@@ -19,7 +19,7 @@
  */
 package com.jadice.barcode;
 
-import java.util.List;
+import java.util.Collection;
 
 import com.jadice.barcode.grid.BinaryGrid;
 
@@ -186,7 +186,7 @@ public abstract class AbstractDecoder implements Decoder {
     }
   }
 
-  public abstract List<Result> detect(BinaryGrid image);
+  public abstract Collection<Result> detect(BinaryGrid image);
 
   @Override
   public void setOptions(Options options) {

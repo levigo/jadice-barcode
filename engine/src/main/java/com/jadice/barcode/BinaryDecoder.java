@@ -19,7 +19,7 @@
  */
 package com.jadice.barcode;
 
-import java.util.List;
+import java.util.Collection;
 
 import com.jadice.barcode.grid.BinaryGrid;
 
@@ -29,10 +29,10 @@ import com.jadice.barcode.grid.BinaryGrid;
  */
 public interface BinaryDecoder extends Decoder {
   /**
-   * Called to run detection on the given binary grid.
+   * Called to run detection on the given {@link BinaryGrid}.
    * 
    * @param grid
    * @return the detection results
    */
-  List<Result> detect(BinaryGrid grid);
+  Collection<Result> detect(BinaryGrid grid);
 }

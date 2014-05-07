@@ -19,7 +19,7 @@
  */
 package com.jadice.barcode;
 
-import java.util.List;
+import java.util.Collection;
 
 import com.jadice.barcode.grid.LuminanceGrid;
 
@@ -28,5 +28,11 @@ import com.jadice.barcode.grid.LuminanceGrid;
  * images.
  */
 public interface LuminanceDecoder extends Decoder {
-  List<Result> detect(LuminanceGrid grid);
+  /**
+   * Detect and decode bar codes on a given {@link LuminanceGrid}.
+   * 
+   * @param grid
+   * @return a list of results
+   */
+  Collection<Result> detect(LuminanceGrid grid);
 }

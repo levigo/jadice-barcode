@@ -272,7 +272,7 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
    * com.levigo.barcode.DetectionOptions)
    */
   @Override
-  public List<Result> detect(BinaryGrid image) {
+  public Collection<Result> detect(BinaryGrid image) {
     List<Result> results = new ArrayList<Result>();
 
     startEdges.clear();
