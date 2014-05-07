@@ -35,8 +35,8 @@ import java.awt.Shape;
 import java.awt.geom.GeneralPath;
 
 import com.jadice.barcode.DiagnosticSettings;
-import com.jadice.barcode.Options;
 import com.jadice.barcode.Marker.Feature;
+import com.jadice.barcode.Options;
 
 /**
  * @struct DmtxRegion
@@ -391,6 +391,7 @@ public class Region {
   public static final int DmtxModuleData = 0x40;
   static final int DMTX_HOUGH_RES = 180;
 
+  @SuppressWarnings("unused")
   private final DiagnosticSettings diag;
 
   final PointFlow dmtxBlankEdge = new PointFlow() {
