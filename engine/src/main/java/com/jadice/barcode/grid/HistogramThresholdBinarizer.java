@@ -24,11 +24,15 @@ import java.util.List;
 
 import com.jadice.barcode.Result;
 
-public class GlobalThresholdBinarizer extends Binarizer {
+/**
+ * A {@link Binarizer} implementation which uses some heuristics to derive a global threshold from
+ * the given {@link LuminanceGrid}. This threshold is used to binarize the image.
+ */
+public class HistogramThresholdBinarizer extends FixedlThresholdBinarizer {
 
   private static final int histogramSamplingInterval = 10;
 
-  public GlobalThresholdBinarizer(LuminanceGrid grid) {
+  public HistogramThresholdBinarizer(LuminanceGrid grid) {
     super(grid);
     setThreshold(calcThreshold(null));
   }
@@ -114,14 +118,6 @@ public class GlobalThresholdBinarizer extends Binarizer {
   @Override
   public AffineTransform getInverseTransform() {
     return grid.getInverseTransform();
-  }
-
-  @Override
-  public boolean samplePixel(int x, int y) {
-    int sum = 0;
-    for (int c = 0; c < channels; c++)
-      sum += grid.getPixelLuminance(x, y);
-    return sum < threshold;
   }
 
   @Override

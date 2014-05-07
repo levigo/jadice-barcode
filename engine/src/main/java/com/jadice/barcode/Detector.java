@@ -28,7 +28,7 @@ import java.util.List;
 
 import com.jadice.barcode.grid.BinaryGrid;
 import com.jadice.barcode.grid.FixedlThresholdBinarizer;
-import com.jadice.barcode.grid.GlobalThresholdBinarizer;
+import com.jadice.barcode.grid.HistogramThresholdBinarizer;
 import com.jadice.barcode.grid.Grid;
 import com.jadice.barcode.grid.LuminanceGrid;
 import com.jadice.barcode.grid.QuadrantRotationGrid;
@@ -123,7 +123,7 @@ public class Detector {
       if (threshold != BaseSettings.AUTO_THRESHOLD)
         binaryGrid = new FixedlThresholdBinarizer((LuminanceGrid) grid);
       else
-        binaryGrid = new GlobalThresholdBinarizer((LuminanceGrid) grid);
+        binaryGrid = new HistogramThresholdBinarizer((LuminanceGrid) grid);
     } else
       throw new IllegalArgumentException("Unsupported type of grid: " + grid.getClass());
 
