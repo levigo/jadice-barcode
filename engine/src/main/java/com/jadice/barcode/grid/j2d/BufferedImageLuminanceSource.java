@@ -25,7 +25,7 @@ import java.awt.image.BufferedImage;
 import com.jadice.barcode.grid.LuminanceGrid;
 
 /**
- * @author jh
+ * A {@link LuminanceGrid} based on a supplied {@link BufferedImage}.
  */
 public class BufferedImageLuminanceSource implements LuminanceGrid {
 
