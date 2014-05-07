@@ -27,14 +27,15 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 
 import com.jadice.barcode.Marker;
-import com.jadice.barcode.Result;
 import com.jadice.barcode.Marker.Feature;
+import com.jadice.barcode.Result;
 
 /**
+ * A collection of static utility methods used to paint {@link Result}s and debug-{@link Marker}s
+ * into a Java2D {@link Graphics2D} context.
  */
 public class Java2DResultPainter {
   private static final int DEBUG_ALPHA = 200;
@@ -67,7 +68,7 @@ public class Java2DResultPainter {
   private static final Color VALID_CODE_BACKGROUND = new Color(0, 255, 0, 240);
   private static final Color INVALID_CODE_BACKGROUND = new Color(255, 0, 0, 240);
 
-  public static void paintCodeMarkers(Graphics2D g2, List<Result> results) {
+  public static void paintCodeMarkers(Graphics2D g2, Collection<Result> results) {
     g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
     for (Result r : results) {
