@@ -42,7 +42,7 @@ public abstract class Binarizer implements BinaryGrid {
 
   @Override
   public boolean samplePixel(int x, int y) {
-    return grid.getPixelLuminance(x, y) < getThreshold(x, y);
+    return grid.getLuminance(x, y) < getThreshold(x, y);
   }
 
   protected abstract int getThreshold(int x, int y);

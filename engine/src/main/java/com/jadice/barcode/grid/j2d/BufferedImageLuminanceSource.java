@@ -55,7 +55,7 @@ public class BufferedImageLuminanceSource implements LuminanceGrid {
    * @see com.jadice.barcode.grid.LuminanceGrid#getPixelLuminance(int, int)
    */
   @Override
-  public int getPixelLuminance(int x, int y) {
+  public int getLuminance(int x, int y) {
     if (x < 0 || y < 0 || x >= width || y >= height)
       return 0xff;
 

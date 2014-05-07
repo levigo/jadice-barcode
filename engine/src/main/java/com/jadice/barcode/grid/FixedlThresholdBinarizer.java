@@ -36,11 +36,6 @@ public class FixedlThresholdBinarizer extends Binarizer {
   }
 
   @Override
-  public int getPixelLuminance(int x, int y) {
-    return samplePixel(x, y) ? 0 : 255;
-  }
-
-  @Override
   protected int getThreshold(int x, int y) {
     return threshold;
   }

@@ -31,6 +31,7 @@ import static java.lang.Math.min;
 
 import com.jadice.barcode.Options;
 import com.jadice.barcode.grid.Grid;
+import com.jadice.barcode.grid.LuminanceGrid;
 
 public class Decode {
   public class Cache {
@@ -108,7 +109,7 @@ public class Decode {
 
   /* Internals */
   private final byte cache[];
-  private final Grid grid;
+  private final LuminanceGrid grid;
   private final ScanStrategy scanStrategy;
   private final long startTime;
   public static final long DMTX_USEC_PER_SEC = 1000000;
@@ -119,7 +120,7 @@ public class Decode {
    * \brief Initialize decode struct with default values \param img \return Initialized DmtxDecode
    * struct
    */
-  Decode(Grid img, ScanStrategy scanStrategy, int scale, Options options) {
+  Decode(LuminanceGrid img, ScanStrategy scanStrategy, int scale, Options options) {
     this.grid = img;
     this.scanStrategy = scanStrategy;
     this.options = options;
@@ -201,7 +202,7 @@ public class Decode {
     // grid.getHeight())
     // throw new OutOfRangeException("");
 
-    int v = grid.getPixelLuminance(xUnscaled, grid.getHeight() - yUnscaled - 1);
+    int v = grid.getLuminance(xUnscaled, grid.getHeight() - yUnscaled - 1);
     // System.out.println(xUnscaled + "/" + yUnscaled + "[" + channel + "]: " + v);
     return v; // FIXME , channel);
   }

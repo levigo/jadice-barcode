@@ -45,7 +45,7 @@ public class HistogramThresholdBinarizer extends FixedlThresholdBinarizer {
 
     for (int y = 0; y < height; y += histogramSamplingInterval)
       for (int x = 0; x < width; x += histogramSamplingInterval) {
-        int value = grid.getPixelLuminance(x, y);
+        int value = grid.getLuminance(x, y);
         if (value < 0)
           value = 0;
         if (value > 255)
@@ -118,10 +118,5 @@ public class HistogramThresholdBinarizer extends FixedlThresholdBinarizer {
   @Override
   public AffineTransform getInverseTransform() {
     return grid.getInverseTransform();
-  }
-
-  @Override
-  public int getPixelLuminance(int x, int y) {
-    return samplePixel(x, y) ? 0 : 255;
   }
 }
