@@ -54,7 +54,7 @@ public class ScanController extends JComponent {
         getter = settingsClass.getMethod("get" + ucfirst);
         setter = settingsClass.getMethod("set" + ucfirst, int.class);
 
-        final Settings settings = options.getOptions(settingsClass);
+        final Settings settings = options.getSettings(settingsClass);
 
         slider = new PopupSlider(title, min, max, (Integer) getter.invoke(settings));
         slider.addValueChangeListener(new ChangeListener() {

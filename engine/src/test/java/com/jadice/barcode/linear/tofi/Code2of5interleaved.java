@@ -41,13 +41,13 @@ public class Code2of5interleaved extends AbstractDecodeTest {
     { "118_1818.jpg", "200168", new Configurer() {
       @Override
       public void configure(Options o) {
-        o.getOptions(LinearCodeSettings.class).setQuietZoneTolerance(30);
+        o.getSettings(LinearCodeSettings.class).setQuietZoneTolerance(30);
       }
     }}, //
     { "118_1819.jpg", "200168", new Configurer() {
       @Override
       public void configure(Options o) {
-        o.getOptions(LinearCodeSettings.class).setQuietZoneTolerance(30);
+        o.getSettings(LinearCodeSettings.class).setQuietZoneTolerance(30);
       }
     }}, //
     { "2iof5.png", "1022049452", null }, //
@@ -73,10 +73,10 @@ public class Code2of5interleaved extends AbstractDecodeTest {
 
   @Override
   protected void initOptions(Options options) {
-    options.getOptions(LinearCodeSettings.class).setScanInterval(20);
-    options.getOptions(LinearCodeSettings.class).setDirectionEnabled(Direction.NORTH, true);
-    options.getOptions(LinearCodeSettings.class).setDirectionEnabled(Direction.SOUTH, true);
-    options.getOptions(LinearCodeSettings.class).setDirectionEnabled(Direction.WEST, true);
+    options.getSettings(LinearCodeSettings.class).setScanInterval(20);
+    options.getSettings(LinearCodeSettings.class).setDirectionEnabled(Direction.NORTH, true);
+    options.getSettings(LinearCodeSettings.class).setDirectionEnabled(Direction.SOUTH, true);
+    options.getSettings(LinearCodeSettings.class).setDirectionEnabled(Direction.WEST, true);
 
     super.initOptions(options);
   }

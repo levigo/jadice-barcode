@@ -141,7 +141,7 @@ public class TwoOfFiveInterleavedDecoder extends OneDDecoder {
    * @return
    */
   private boolean verifyChecksum(CodeString result) {
-    if (!options.getOptions(Code2of5Settings.class).isEnableChecksumVerification()) {
+    if (!options.getSettings(Code2of5Settings.class).isEnableChecksumVerification()) {
       result.setChecksumVerificationOK(true);
       return true;
     }

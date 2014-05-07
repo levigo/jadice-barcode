@@ -488,7 +488,7 @@ public class BarcodeTest extends JFrame {
     else
       resultPane.setBinaryImage(null);
 
-    DiagnosticSettings diagnostics = options.getOptions(DiagnosticSettings.class);
+    DiagnosticSettings diagnostics = options.getSettings(DiagnosticSettings.class);
     diagnostics.getDebugMarkers().clear();
     diagnostics.getTransientMarkers().clear();
 

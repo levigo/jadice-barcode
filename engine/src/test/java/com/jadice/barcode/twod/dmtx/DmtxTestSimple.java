@@ -245,7 +245,7 @@ public class DmtxTestSimple extends AbstractDecodeTest {
 
   @Override
   protected void initOptions(Options options) {
-    options.getOptions(DatamatrixSettings.class).setMinExtent(8);
+    options.getSettings(DatamatrixSettings.class).setMinExtent(8);
   }
 
   @Override

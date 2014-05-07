@@ -43,14 +43,14 @@ public class SymbologySelector extends JComponent {
       addActionListener(new ActionListener() {
         public void actionPerformed(ActionEvent e) {
           final boolean s = ((JCheckBox) e.getSource()).isSelected();
-          options.getOptions(BaseSettings.class).setSymbologyEnabled(symbology, s);
+          options.getSettings(BaseSettings.class).setSymbologyEnabled(symbology, s);
           SymbologySelector.this.firePropertyChange("enabledSymbology", !s, s);
         }
       });
     }
 
     void syncFromModel() {
-      setSelected(options.getOptions(BaseSettings.class).isSymbologyEnabled(symbology));
+      setSelected(options.getSettings(BaseSettings.class).isSymbologyEnabled(symbology));
     }
   }
 
@@ -63,7 +63,7 @@ public class SymbologySelector extends JComponent {
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
     try {
-      for (Class<? extends Symbology> s : options.getOptions(BaseSettings.class).getAvailableSymbologies())
+      for (Class<? extends Symbology> s : options.getSettings(BaseSettings.class).getAvailableSymbologies())
         add(new SymbologyCheckBox(s));
     } catch (Exception e) {
       throw new RuntimeException("Should not happen", e);

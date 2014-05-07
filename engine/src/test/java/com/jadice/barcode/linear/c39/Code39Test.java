@@ -39,7 +39,7 @@ public class Code39Test extends AbstractDecodeTest {
     { "279584391_14f7b9e27e_o.png", "*1234567+A+U+H+A+S+U+HUHAUSD*", new Configurer() {
       @Override
       public void configure(Options o) {
-        o.getOptions(Code39Settings.class).setEnableFullASCII(false);
+        o.getSettings(Code39Settings.class).setEnableFullASCII(false);
       }
     }}, //
     { "735px-Code39_Wikipedia.svg.png", "*WIKIPEDIA$*", null }, //
@@ -47,7 +47,7 @@ public class Code39Test extends AbstractDecodeTest {
     { "800px-Code_3_of_9.svg.png", "WIKIPEDIA", new Configurer() {
       @Override
       public void configure(Options o) {
-        o.getOptions(Code39Settings.class).setStripSurroundingAsterisks(true);
+        o.getSettings(Code39Settings.class).setStripSurroundingAsterisks(true);
       }
     }}, //
   };

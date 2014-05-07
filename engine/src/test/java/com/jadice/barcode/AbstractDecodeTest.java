@@ -67,7 +67,7 @@ public abstract class AbstractDecodeTest {
 
       Options options = new Options();
       initOptions(options);
-      options.getOptions(BaseSettings.class).setSymbologyEnabled(createSymbology().getClass(), true);
+      options.getSettings(BaseSettings.class).setSymbologyEnabled(createSymbology().getClass(), true);
 
       List<Result> results = Detector.decode(options, luminanceSource);
 

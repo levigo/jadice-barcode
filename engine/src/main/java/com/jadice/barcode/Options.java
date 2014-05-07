@@ -29,16 +29,25 @@ import java.util.Map;
 public class Options {
   private final Map<Class<? extends Settings>, Settings> settings = new HashMap<Class<? extends Settings>, Settings>();
 
+  /**
+   * Return the {@link Settings} of the specified type. This method will always return a non-
+   * <code>null</code> settings instance as long as the given settings class can be instantiated.
+   * 
+   * @param clazz the class of settings to retrieve
+   * @return the settings
+   * @throws InstantiationException if the given class can't be instantiated using a default
+   *           constructor
+   */
   @SuppressWarnings("unchecked")
-  public <S extends Settings> S getOptions(Class<S> setClass) {
-    Settings s = settings.get(setClass);
+  public <S extends Settings> S getSettings(Class<S> clazz) {
+    Settings s = settings.get(clazz);
     if (null == s) {
       try {
-        s = setClass.newInstance();
-        settings.put(setClass, s);
+        s = clazz.newInstance();
+        settings.put(clazz, s);
       } catch (Exception e) {
         // should not happen
-        throw new RuntimeException("Can't instantiate the settings class " + setClass, e);
+        throw new RuntimeException("Can't instantiate the settings class " + clazz, e);
       }
     }
 

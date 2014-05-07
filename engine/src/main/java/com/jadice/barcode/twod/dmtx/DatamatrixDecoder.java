@@ -56,7 +56,7 @@ public class DatamatrixDecoder implements LuminanceDecoder {
   public Collection<Result> detect(LuminanceGrid grid) {
     // FIXME: support more options
     ScanGrid scanGrid = new ScanGrid(grid, options);
-    scanGrid.setMinExtent(options.getOptions(DatamatrixSettings.class).getMinExtent());
+    scanGrid.setMinExtent(options.getSettings(DatamatrixSettings.class).getMinExtent());
 
     Decode dec = new Decode(grid, scanGrid, 1, options);
 

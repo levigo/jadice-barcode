@@ -246,7 +246,7 @@ public class Region {
     if (cache.isAnySet(0x80))
       return null;
 
-    DiagnosticSettings diag = options.getOptions(DiagnosticSettings.class);
+    DiagnosticSettings diag = options.getSettings(DiagnosticSettings.class);
 
     final Region reg = new Region(dec, diag);
 

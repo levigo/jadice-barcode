@@ -59,7 +59,7 @@ public class QuadrantRotationGrid implements BinaryGrid {
 
     Collection<QuadrantRotationGrid> rotatingSources = new ArrayList<QuadrantRotationGrid>();
     for (LinearCodeSettings.Direction d : LinearCodeSettings.Direction.values())
-      if (options.getOptions(LinearCodeSettings.class).isDirectionEnabled(d))
+      if (options.getSettings(LinearCodeSettings.class).isDirectionEnabled(d))
         for (BinaryGrid delegate : sources)
           rotatingSources.add(new QuadrantRotationGrid(delegate, d));
 

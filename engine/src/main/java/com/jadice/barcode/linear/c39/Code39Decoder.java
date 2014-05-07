@@ -211,7 +211,7 @@ public class Code39Decoder extends OneDDecoder {
   protected String decodeCodeString(CodeString string) {
     int[] codes = string.getCodes();
 
-    Code39Settings settings = options.getOptions(Code39Settings.class);
+    Code39Settings settings = options.getSettings(Code39Settings.class);
     StringBuilder sb = new StringBuilder();
 
     for (int i = 0; i < codes.length; i++)
@@ -262,7 +262,7 @@ public class Code39Decoder extends OneDDecoder {
     // float avgSpaceWidthWide = widths[1];
 
     float overprint = avgBarWidthNarrow / avgSpaceWidthNarrow;
-    float overprintTolerance = options.getOptions(BaseSettings.class).getOverprintTolerance() / 100f;
+    float overprintTolerance = options.getSettings(BaseSettings.class).getOverprintTolerance() / 100f;
     if (overprint > 1 + overprintTolerance || overprint < 1 - overprintTolerance)
       return null;
 
@@ -290,7 +290,7 @@ public class Code39Decoder extends OneDDecoder {
     float narrowAvgWidth = sumWidths(sortedWidths, 0, narrow, 1) / (float) narrow;
 
     float wideToNarrowRatio = wideAvgWidth / narrowAvgWidth;
-    float t = options.getOptions(LinearCodeSettings.class).getBarWidthTolerance() / 100f;
+    float t = options.getSettings(LinearCodeSettings.class).getBarWidthTolerance() / 100f;
     if (clamp(wideToNarrowRatio, 2f - t, 3f + t) != wideToNarrowRatio)
       return -1;
 
@@ -357,7 +357,7 @@ public class Code39Decoder extends OneDDecoder {
         confidence++;
 
         // determine/verify checksum
-        Code39Settings settings = options.getOptions(Code39Settings.class);
+        Code39Settings settings = options.getSettings(Code39Settings.class);
         int[] codes = result.getCodes();
         if (settings.isEnableChecksumVerification()) {
           if (codes.length > 2) {

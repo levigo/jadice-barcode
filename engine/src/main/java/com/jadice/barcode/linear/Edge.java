@@ -107,9 +107,9 @@ public class Edge {
     width = ed.width;
     this.moduleWidth = moduleWidth;
 
-    confidenceZoneSize = width * options.getOptions(LinearCodeSettings.class).getConfidenceRadius() * 2 / 100;
+    confidenceZoneSize = width * options.getSettings(LinearCodeSettings.class).getConfidenceRadius() * 2 / 100;
 
-    diagSettings = options.getOptions(DiagnosticSettings.class);
+    diagSettings = options.getSettings(DiagnosticSettings.class);
     enableDiagMarkup = diagSettings.isMarkupEnabled();
 
     confidenceRectangle = new Rectangle(ed.x - confidenceZoneSize / 2, ed.y - confidenceZoneSize / 2,

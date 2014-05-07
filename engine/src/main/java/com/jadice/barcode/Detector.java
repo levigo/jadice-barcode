@@ -60,8 +60,8 @@ public class Detector {
         ? ((BinaryGrid) grid) //
         : prepareBinaryGrid(options, grid);
 
-    BaseSettings baseSettings = options.getOptions(BaseSettings.class);
-    LinearCodeSettings linearCodeSettings = options.getOptions(LinearCodeSettings.class);
+    BaseSettings baseSettings = options.getSettings(BaseSettings.class);
+    LinearCodeSettings linearCodeSettings = options.getSettings(LinearCodeSettings.class);
 
     // build image variations
     List<BinaryGrid> binarySources = new LinkedList<BinaryGrid>();
@@ -116,7 +116,7 @@ public class Detector {
 
   public static BinaryGrid prepareBinaryGrid(Options options, Grid grid) {
     BinaryGrid binaryGrid;
-    int threshold = options.getOptions(BaseSettings.class).getThreshold();
+    int threshold = options.getSettings(BaseSettings.class).getThreshold();
     if (grid instanceof BinaryGrid)
       return (BinaryGrid) grid;
     else if (grid instanceof LuminanceGrid) {

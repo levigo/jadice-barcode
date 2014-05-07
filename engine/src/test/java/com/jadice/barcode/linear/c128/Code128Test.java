@@ -47,7 +47,7 @@ public class Code128Test extends AbstractDecodeTest {
     { "skaliert, rotiert.png", "levigo test barcode 128B", new Configurer() {
       @Override
       public void configure(Options o) {
-        o.getOptions(BaseSettings.class).setThreshold(50);
+        o.getSettings(BaseSettings.class).setThreshold(50);
       }
     } }, //
     // FIXME: why?
@@ -56,7 +56,7 @@ public class Code128Test extends AbstractDecodeTest {
     { "fieses rauschen.png", "levigo test barcode 128B", new Configurer() {
       @Override
       public void configure(Options o) {
-        o.getOptions(BaseSettings.class).setThreshold(60);
+        o.getSettings(BaseSettings.class).setThreshold(60);
       }
     } }, //
     { "einschusslöcher.png", "levigo test barcode 128B", null }, //

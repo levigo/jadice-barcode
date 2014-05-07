@@ -70,8 +70,8 @@ public class ScanGrid implements ScanStrategy {
    * @param options
    */
   ScanGrid(Grid grid, Options options) {
-    createMarkup = options.getOptions(DiagnosticSettings.class).isMarkupEnabled();
-    diagnostics = options.getOptions(DiagnosticSettings.class);
+    createMarkup = options.getSettings(DiagnosticSettings.class).isMarkupEnabled();
+    diagnostics = options.getSettings(DiagnosticSettings.class);
 
     int scale = 1;
     int smallestFeature = 1 / scale;

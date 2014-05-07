@@ -43,14 +43,14 @@ public class ScanDirectionsSelector extends JComponent {
       addActionListener(new ActionListener() {
         public void actionPerformed(ActionEvent e) {
           final boolean s = ((JCheckBox) e.getSource()).isSelected();
-          options.getOptions(LinearCodeSettings.class).setDirectionEnabled(direction, s);
+          options.getSettings(LinearCodeSettings.class).setDirectionEnabled(direction, s);
           ScanDirectionsSelector.this.firePropertyChange("enabledDirection", !s, s);
         }
       });
     }
 
     void syncFromModel() {
-      setSelected(options.getOptions(LinearCodeSettings.class).isDirectionEnabled(direction));
+      setSelected(options.getSettings(LinearCodeSettings.class).isDirectionEnabled(direction));
     }
   }
 

@@ -160,10 +160,10 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
   @Override
   public void setOptions(Options options) {
     super.setOptions(options);
-    baseSettings = options.getOptions(BaseSettings.class);
-    linearCodeSettings = options.getOptions(LinearCodeSettings.class);
+    baseSettings = options.getSettings(BaseSettings.class);
+    linearCodeSettings = options.getSettings(LinearCodeSettings.class);
 
-    diagnosticOptions = options.getOptions(DiagnosticSettings.class);
+    diagnosticOptions = options.getSettings(DiagnosticSettings.class);
     isDiagMarkupEnabled = diagnosticOptions.isMarkupEnabled();
   }
 
