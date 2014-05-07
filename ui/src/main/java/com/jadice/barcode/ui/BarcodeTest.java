@@ -83,7 +83,6 @@ import com.jadice.barcode.grid.j2d.Utils;
  * A simple GUI that allows barcode testing. In contrast to <code>ViewerBarcodeDemo</code> this GUI
  * is independent of the jadice viewer.
  * 
- * @author jh
  */
 public class BarcodeTest extends JFrame {
   public static void main(String[] args) throws FileNotFoundException, IOException {

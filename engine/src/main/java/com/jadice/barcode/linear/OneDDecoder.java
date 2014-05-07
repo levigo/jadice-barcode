@@ -45,7 +45,6 @@ import com.jadice.barcode.grid.BinaryGrid;
 /**
  * Abstract implementation of a barcode detector for a linear (1D) code.
  * 
- * @author jh
  */
 public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecoder {
 

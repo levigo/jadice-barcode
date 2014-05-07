@@ -39,8 +39,6 @@ import com.jadice.barcode.linear.LinearCodeSettings.Direction;
  * 
  * @see Options.Direction
  * 
- * @author Jörg Henne
- * @author Tobias Jenkner
  * 
  */
 public class QuadrantRotationGrid implements BinaryGrid {

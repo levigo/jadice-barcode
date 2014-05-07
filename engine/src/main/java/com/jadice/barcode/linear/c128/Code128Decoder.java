@@ -32,7 +32,6 @@ import com.jadice.barcode.linear.OneDDecoder;
 /**
  * A detector for Code 128 Codes.
  * 
- * @author jh
  */
 public class Code128Decoder extends OneDDecoder {
 

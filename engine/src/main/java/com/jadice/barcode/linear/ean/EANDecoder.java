@@ -31,7 +31,6 @@ import com.jadice.barcode.linear.OneDDecoder;
 /**
  * A detector for UPC and EAN Codes.
  * 
- * @author jh
  */
 public class EANDecoder extends OneDDecoder {
 

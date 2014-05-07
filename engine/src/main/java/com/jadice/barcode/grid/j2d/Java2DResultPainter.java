@@ -35,7 +35,6 @@ import com.jadice.barcode.Result;
 import com.jadice.barcode.Marker.Feature;
 
 /**
- * @author jh
  */
 public class Java2DResultPainter {
   private static final int DEBUG_ALPHA = 200;

@@ -110,8 +110,6 @@ import javax.swing.Timer;
  *                 its content with an animation."
  *                 stopClass="java.awt.Component"
  * 
- * @author rbair (from the JDNC project)
- * @author <a href="mailto:fred@L2FProd.com">Frederic Lavigne</a>
  */
 public class CollapsiblePane extends JPanel {
 	/**
@@ -443,8 +441,7 @@ public class CollapsiblePane extends JPanel {
 	 * responsible for modifying the size of the content container and causing it
 	 * to be repainted.
 	 * 
-	 * @author Richard Bair
-	 */
+		 */
 	private final class AnimationListener implements ActionListener {
 		/**
 		 * This is the starting width/height when animating. If > finalHeight, then

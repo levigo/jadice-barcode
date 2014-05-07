@@ -38,7 +38,6 @@ import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 
 /**
- * @author hennejg
  * 
  */
 public class CollapsibleSection extends JPanel {

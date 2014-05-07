@@ -25,7 +25,6 @@ import com.jadice.barcode.Settings;
 
 
 /**
- * @author jh
  */
 public class LinearCodeSettings implements Settings {
   public enum Direction {

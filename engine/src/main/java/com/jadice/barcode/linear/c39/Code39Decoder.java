@@ -31,7 +31,6 @@ import com.jadice.barcode.linear.OneDDecoder;
 /**
  * A detector for Code 39 Codes.
  * 
- * @author jh
  */
 public class Code39Decoder extends OneDDecoder {
 

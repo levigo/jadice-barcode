@@ -36,7 +36,6 @@ import com.jadice.barcode.grid.BinaryGrid;
 import com.jadice.barcode.linear.OneDDecoder.EdgeDetection;
 
 /**
- * @author jh
  */
 public class Edge {
   private static final Logger logger = Logger.getLogger(Edge.class);

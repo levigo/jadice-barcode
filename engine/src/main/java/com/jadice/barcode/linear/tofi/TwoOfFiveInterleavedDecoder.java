@@ -32,7 +32,6 @@ import com.jadice.barcode.linear.OneDDecoder;
  * A detector implementatopn for a 2-of-5 interleaved code. Could be easily extended to cover 2-of-5
  * non-interleaved as well.
  * 
- * @author jh
  */
 public class TwoOfFiveInterleavedDecoder extends OneDDecoder {
 
