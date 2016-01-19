@@ -220,6 +220,15 @@ public class BaseSettings implements Settings {
   }
 
   /**
+   * Returns the primary threshold used to binarize the image.
+   * 
+   * @return the thresholds
+   */
+  public int getThreshold() {
+    return thresholds.isEmpty() ? AUTO_THRESHOLD : thresholds.get(0);
+  }
+
+  /**
    * The limit of found barcodes after which the detection stops and returns the already detected
    * barcode results.
    * 
