@@ -32,7 +32,7 @@ public class ROIGrid implements BinaryGrid {
 
   public ROIGrid(BinaryGrid delegate, Rectangle region) {
     this.delegate = delegate;
-    this.region = region;
+    this.region = new Rectangle(region).intersection(new Rectangle(0,0,delegate.getWidth(),delegate.getHeight()));
   }
 
   @Override
@@ -53,11 +53,11 @@ public class ROIGrid implements BinaryGrid {
 
   @Override
   public int getWidth() {
-    return delegate.getWidth();
+    return region.width;
   }
 
   @Override
   public int getHeight() {
-    return delegate.getHeight();
+    return region.height;
   }
 }

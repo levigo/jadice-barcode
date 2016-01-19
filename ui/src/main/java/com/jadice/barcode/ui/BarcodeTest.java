@@ -69,6 +69,7 @@ import javax.swing.SwingWorker;
 import javax.swing.SwingWorker.StateValue;
 import javax.swing.filechooser.FileFilter;
 
+import com.jadice.barcode.BaseSettings;
 import com.jadice.barcode.Detector;
 import com.jadice.barcode.DiagnosticSettings;
 import com.jadice.barcode.DiagnosticSettings.TransientMarkerListener;
@@ -229,9 +230,8 @@ public class BarcodeTest extends JFrame {
     // file selector
     getContentPane().add(createFileSelector(), BorderLayout.NORTH);
 
-    getContentPane().add(
-        new JScrollPane(createOptionPane(), JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER), BorderLayout.EAST);
+    getContentPane().add(new JScrollPane(createOptionPane(), JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+        JScrollPane.HORIZONTAL_SCROLLBAR_NEVER), BorderLayout.EAST);
 
     coordinateLabel = new JLabel("-");
     getContentPane().add(coordinateLabel, BorderLayout.SOUTH);
@@ -434,8 +434,8 @@ public class BarcodeTest extends JFrame {
       return;
 
     Insets i = imagePane.getInsets();
-    zoomFactor = (int) Math.floor(Math.min(100.0 * (imagePane.getWidth() - i.left - i.right) / image.getWidth(), 100.0
-        * (imagePane.getHeight() - i.top - i.bottom) / image.getHeight()));
+    zoomFactor = (int) Math.floor(Math.min(100.0 * (imagePane.getWidth() - i.left - i.right) / image.getWidth(),
+        100.0 * (imagePane.getHeight() - i.top - i.bottom) / image.getHeight()));
     zoomField.setText(Integer.toString(zoomFactor));
 
     if (null != resultPane)
@@ -472,14 +472,16 @@ public class BarcodeTest extends JFrame {
   }
 
   /**
-	 * 
-	 */
+   * 
+   */
   void runDetection() {
     if (null == image)
       return;
 
     final BufferedImageLuminanceSource src = new BufferedImageLuminanceSource(image);
-    BinaryGrid binaryGrid = Detector.prepareBinaryGrid(options, src);
+    List<Integer> thresholds = options.getSettings(BaseSettings.class).getThresholds();
+    int threshold = thresholds.isEmpty() ? BaseSettings.AUTO_THRESHOLD : thresholds.get(0);
+    BinaryGrid binaryGrid = Detector.prepareBinaryGrid(options, src, threshold);
 
     if (binarizedImageBox != null && binarizedImageBox.isSelected())
       resultPane.setBinaryImage(Java2DUtils.createBinaryGridImage(binaryGrid));

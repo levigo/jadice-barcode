@@ -28,8 +28,8 @@ import java.util.List;
 
 import com.jadice.barcode.grid.BinaryGrid;
 import com.jadice.barcode.grid.FixedlThresholdBinarizer;
-import com.jadice.barcode.grid.HistogramThresholdBinarizer;
 import com.jadice.barcode.grid.Grid;
+import com.jadice.barcode.grid.HistogramThresholdBinarizer;
 import com.jadice.barcode.grid.LuminanceGrid;
 import com.jadice.barcode.grid.QuadrantRotationGrid;
 import com.jadice.barcode.grid.ROIGrid;
@@ -52,27 +52,45 @@ public class Detector {
     // globally aggregated results go here
     List<Result> results = new ArrayList<Result>();
 
+    List<Integer> thresholds = options.getSettings(BaseSettings.class).getThresholds();
+    int barcodeCountLimit = options.getSettings(BaseSettings.class).getBarcodeCountLimit();
+    if (!thresholds.isEmpty()) {
+      for (int threshold : thresholds) {
+        mergeNoDuplicates(decodeAtThreshold(options, grid, threshold), results);
+        // break when expected number of barcodes are found
+        if (barcodeCountLimit != BaseSettings.NO_BARCODELIMIT && results.size() >= barcodeCountLimit)
+          break;
+      }
+    } else {
+      results.addAll(decodeAtThreshold(options, grid, BaseSettings.AUTO_THRESHOLD));
+    }
+    return results;
+  }
+
+  private static List<Result> decodeAtThreshold(Options options, Grid grid, int threshold) {
+    List<Result> results = new ArrayList<Result>();
+
+
     LuminanceGrid lumGrid = null;
     if (grid instanceof LuminanceGrid)
       lumGrid = (LuminanceGrid) grid;
 
     BinaryGrid binaryGrid = grid instanceof BinaryGrid //
         ? ((BinaryGrid) grid) //
-        : prepareBinaryGrid(options, grid);
+        : prepareBinaryGrid(options, grid, threshold);
 
     BaseSettings baseSettings = options.getSettings(BaseSettings.class);
     LinearCodeSettings linearCodeSettings = options.getSettings(LinearCodeSettings.class);
 
     // build image variations
     List<BinaryGrid> binarySources = new LinkedList<BinaryGrid>();
-    for (Direction d : Direction.values()) {
-      if (linearCodeSettings.isDirectionEnabled(d))
-        if (baseSettings.getRegions().isEmpty())
-          binarySources.add(d == Direction.EAST ? binaryGrid : new QuadrantRotationGrid(binaryGrid, d));
-        else
-          for (Rectangle region : baseSettings.getRegions())
-            binarySources.add(new ROIGrid(d == Direction.EAST ? binaryGrid : new QuadrantRotationGrid(binaryGrid, d),
-                region));
+    if (!baseSettings.getRegions().isEmpty()) {
+      for (Rectangle region : baseSettings.getRegions()) {
+        ROIGrid regionGrid = new ROIGrid(binaryGrid, region);
+        binarySources.addAll(getBinarySourcesForActiveDirections(regionGrid, linearCodeSettings));
+      }
+    } else {
+      binarySources.addAll(getBinarySourcesForActiveDirections(binaryGrid, linearCodeSettings));
     }
 
     // build list of codes to try
@@ -102,7 +120,20 @@ public class Detector {
   }
 
   /**
-   * Merge another list of resuls, applying the given transform to them.
+   * Returns the binary sources for all active directions.
+   */
+  private static List<BinaryGrid> getBinarySourcesForActiveDirections(BinaryGrid binaryGrid,
+      LinearCodeSettings linearCodeSettings) {
+    List<BinaryGrid> binarySources = new LinkedList<BinaryGrid>();
+    for (Direction d : Direction.values()) {
+      if (linearCodeSettings.isDirectionEnabled(d))
+        binarySources.add(d == Direction.EAST ? binaryGrid : new QuadrantRotationGrid(binaryGrid, d));
+    }
+    return binarySources;
+  }
+
+  /**
+   * Merge another list of results, applying the given transform to them.
    * 
    * @param transform
    * @param r
@@ -114,9 +145,28 @@ public class Detector {
     }
   }
 
-  public static BinaryGrid prepareBinaryGrid(Options options, Grid grid) {
+  /**
+   * Merge another list of results, excluding any duplicates.
+   */
+  private static void mergeNoDuplicates(Collection<Result> src, Collection<Result> dst) {
+    for (final Result s : src) {
+      boolean duplicate = false;
+      for (final Result d : dst) {
+        // already found
+        if (d.getShape().intersects(s.getShape().getBounds())) {
+          duplicate = true;
+          break;
+        }
+      }
+      if (!duplicate) {
+        dst.add(s);
+      }
+    }
+  }
+
+  public static BinaryGrid prepareBinaryGrid(Options options, Grid grid, int threshold) {
     BinaryGrid binaryGrid;
-    int threshold = options.getSettings(BaseSettings.class).getThreshold();
+
     if (grid instanceof BinaryGrid)
       return (BinaryGrid) grid;
     else if (grid instanceof LuminanceGrid) {

@@ -37,7 +37,7 @@ public class BaseSettings implements Settings {
 
   public static final int AUTO_THRESHOLD = -1;
 
-  private int threshold = AUTO_THRESHOLD;
+  private List<Integer> thresholds = new ArrayList<Integer>();
 
   /**
    * The overprint tolerance specifies the latitude the detection allows for the mis-match between
@@ -56,6 +56,16 @@ public class BaseSettings implements Settings {
    * The list of regions-of-interest for the detection.
    */
   private final List<Rectangle> regions = new ArrayList<Rectangle>();
+
+  public static final int NO_BARCODELIMIT = 0;
+
+  /**
+   * The limit of found barcodes after which the detection stops and returns the already detected
+   * barcode results.
+   * 
+   * Default: {@link NO_BARCODELIMIT}
+   */
+  private int barcodeCountLimit = NO_BARCODELIMIT;
 
   public BaseSettings() {
   }
@@ -149,23 +159,46 @@ public class BaseSettings implements Settings {
   }
 
   /**
-   * Return the threshold used to binarize the image.
+   * Set the thresholds used to binarize the image. If no threshold is set, {@link #AUTO_THRESHOLD}
+   * is used, in order to let the decoder automatically determine a useful threshold.
    * 
-   * @return the threshold
+   * The thresholds must be between [0, 100].
+   * 
+   * Default: {@link #AUTO_THRESHOLD}
+   * 
+   * @return the thresholds to set
    */
-  public int getThreshold() {
-    return threshold;
+  public void setThresholds(List<Integer> thresholds) {
+    this.thresholds.clear();
+    this.thresholds.addAll(thresholds);
   }
 
   /**
-   * Set the threshold used to binarize the image. The threshold may be set to the constant
-   * {@link #AUTO_THRESHOLD}, in order to let the decoder automatically determine a useful
-   * threshold.
+   * Set the threshold used to binarize the image. The threshold must be between 0 and 100. The
+   * threshold may be set to the constant {@link #AUTO_THRESHOLD}, in order to let the decoder
+   * automatically determine a useful threshold.
+   * 
+   * The threshold must be between [0, 100].
+   * 
+   * Default: {@link #AUTO_THRESHOLD}
    * 
    * @param threshold the threshold to set
    */
   public void setThreshold(int threshold) {
-    this.threshold = threshold;
+    this.thresholds.clear();
+    this.thresholds.add(threshold);
+  }
+
+  /**
+   * Set the limit of found barcodes after which the detection stops and returns the already
+   * detected barcode results.
+   * 
+   * Default: {@link NO_BARCODELIMIT}
+   * 
+   * @param the barcodeCountLimit
+   */
+  public void setBarcodeCountLimit(int limit) {
+    this.barcodeCountLimit = limit;
   }
 
   /**
@@ -175,5 +208,26 @@ public class BaseSettings implements Settings {
    */
   public List<Rectangle> getRegions() {
     return regions;
+  }
+
+  /**
+   * Return the thresholds used to binarize the image.
+   * 
+   * @return the thresholds
+   */
+  public List<Integer> getThresholds() {
+    return thresholds;
+  }
+
+  /**
+   * The limit of found barcodes after which the detection stops and returns the already detected
+   * barcode results.
+   * 
+   * Default: {@link NO_BARCODELIMIT}
+   * 
+   * @return the barcodeLimit
+   */
+  public int getBarcodeCountLimit() {
+    return barcodeCountLimit;
   }
 }
