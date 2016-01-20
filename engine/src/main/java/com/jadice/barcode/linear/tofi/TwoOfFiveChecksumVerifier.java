@@ -12,7 +12,6 @@ public class TwoOfFiveChecksumVerifier implements ChecksumVerifier {
   public boolean verifyChecksum(CodeString result) {
     final int[] codes = result.getCodes();
 
-
     int calculatedCheckSum = 0;
     for (int i = 0; i < codes.length - 1; i++)
       calculatedCheckSum += codes[i] * (i % 2 != 0 ? 3 : 1);
