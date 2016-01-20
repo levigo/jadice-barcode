@@ -47,7 +47,7 @@ public abstract class AbstractDecoder implements Decoder {
    * During post-processing the code strings used for the result are judged by their confidence
    * values.
    */
-  protected class CodeString {
+  public class CodeString {
     /** The internal representation of the code */
     private int codes[];
 

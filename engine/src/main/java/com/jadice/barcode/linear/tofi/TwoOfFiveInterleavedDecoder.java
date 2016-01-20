@@ -135,28 +135,18 @@ public class TwoOfFiveInterleavedDecoder extends OneDDecoder {
   }
 
   /**
+   * Verifies the checksum of the passed result.
+   * 
    * @param result
-   * @param confidence
    * @return
    */
   private boolean verifyChecksum(CodeString result) {
-    if (!options.getSettings(Code2of5Settings.class).isEnableChecksumVerification()) {
+    Code2of5Settings code2Of5Settings = options.getSettings(Code2of5Settings.class);
+    if (!code2Of5Settings.isEnableChecksumVerification()) {
       result.setChecksumVerificationOK(true);
       return true;
     }
-
-    final int[] codes = result.getCodes();
-
-    int checkSum = 0;
-    for (int i = 0; i < codes.length - 1; i++)
-      checkSum += codes[i] * (i % 2 != 0 ? 3 : 1);
-
-    if (checkSum % 10 == 0) {
-      result.setChecksumVerificationOK(true);
-      return true;
-    }
-
-    return false;
+    return code2Of5Settings.getChecksumVerifier().verifyChecksum(result);
   }
 
   /*
@@ -276,7 +266,8 @@ public class TwoOfFiveInterleavedDecoder extends OneDDecoder {
      * bars of the same color.
      */
     int startBlackTotal = barWidths[offset] + barWidths[offset + 2];
-    int nextDataBlackTotal = sumWidths(barWidths, offset + geometry.startCodeWindowSize, geometry.dataCodeWindowSize, 2);
+    int nextDataBlackTotal = sumWidths(barWidths, offset + geometry.startCodeWindowSize, geometry.dataCodeWindowSize,
+        2);
     if (!barRatioOk(startBlackTotal, nextDataBlackTotal, 2, geometry.moduleWidthData, false, 4))
       return null;
 
@@ -356,8 +347,8 @@ public class TwoOfFiveInterleavedDecoder extends OneDDecoder {
      * bars of the same color.
      */
     int stopBlackTotal = barWidths[offset] + barWidths[offset + 2];
-    int prevDataBlackTotal = sumWidths(barWidths, offset - geometry.dataCodeWindowSize * 2,
-        geometry.dataCodeWindowSize, 2);
+    int prevDataBlackTotal = sumWidths(barWidths, offset - geometry.dataCodeWindowSize * 2, geometry.dataCodeWindowSize,
+        2);
     if (!barRatioOk(stopBlackTotal, prevDataBlackTotal, 3, geometry.moduleWidthData, false, 4))
       return null;
 

@@ -20,12 +20,14 @@
 package com.jadice.barcode.linear.c39;
 
 import com.jadice.barcode.Settings;
+import com.jadice.barcode.checksum.Checksum;
+import com.jadice.barcode.checksum.ChecksumVerifier;
 
 
 /**
  * A set of settings which apply to Code 39 bar codes only.
  */
-public class Code39Settings implements Settings {
+public class Code39Settings implements Settings, Checksum {
   /**
    * Whether to strip surrounding asterisks from decoding results.
    */
@@ -35,6 +37,11 @@ public class Code39Settings implements Settings {
    * Whether to enable the optional Code 39 checksum verification.
    */
   private boolean enableChecksumVerification = true;
+
+  /**
+   * The checksumverifier for Code39
+   */
+  private ChecksumVerifier checksumVerifier = null;
 
   /**
    * Whether to enabled Code 39 full ASCII decoding.
@@ -71,6 +78,7 @@ public class Code39Settings implements Settings {
    * 
    * @return
    */
+  @Override
   public boolean isEnableChecksumVerification() {
     return enableChecksumVerification;
   }
@@ -88,6 +96,7 @@ public class Code39Settings implements Settings {
    * 
    * @param enableChecksumVerification
    */
+  @Override
   public void setEnableChecksumVerification(boolean enableChecksumVerification) {
     this.enableChecksumVerification = enableChecksumVerification;
   }
@@ -110,5 +119,18 @@ public class Code39Settings implements Settings {
    */
   public void setEnableFullASCII(boolean enableFullASCII) {
     this.enableFullASCII = enableFullASCII;
+  }
+
+  @Override
+  public ChecksumVerifier getChecksumVerifier() {
+    if (checksumVerifier == null) {
+      checksumVerifier = new Code39ChecksumVerifier();
+    }
+    return checksumVerifier;
+  }
+
+  @Override
+  public void setChecksumVerifier(ChecksumVerifier checksumVerifier) {
+    this.checksumVerifier = checksumVerifier;
   }
 }
