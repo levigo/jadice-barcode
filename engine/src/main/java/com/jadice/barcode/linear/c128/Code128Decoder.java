@@ -53,6 +53,7 @@ public class Code128Decoder extends OneDDecoder {
    * locations.
    */
   private static final int PATTERNS[] = {//
+      //@formatter:off
       // "            VALUE   CODE A  CODE B  CODE C"
       212222, // "0       SP      SP      0       "
       222122, // "1       !       !       1       "
@@ -160,8 +161,8 @@ public class Code128Decoder extends OneDDecoder {
       211412, // "103     START A                 "
       211214, // "104     START B                 "
       211232, // "105     START C                 "
-      2331112
-  // "106     STOP                    
+      2331112 // "106     STOP     
+      //@formatter:on
   };
 
   /** The code table to decode code indices into characters. */
