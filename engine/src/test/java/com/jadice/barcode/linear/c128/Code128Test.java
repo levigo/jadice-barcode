@@ -48,6 +48,7 @@ public class Code128Test extends AbstractDecodeTest {
       @Override
       public void configure(Options o) {
         o.getSettings(BaseSettings.class).setThreshold(50);
+        
       }
     } }, //
     // FIXME: why?

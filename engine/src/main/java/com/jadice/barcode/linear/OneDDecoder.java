@@ -576,8 +576,9 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
     int barWidths[] = new int[image.getWidth()];
     int maxScanLength = (int) Math.max(
         stopEdgeLine.getP1().getX() - startEdgeLine.getP1().getX()
-            + Math.abs(stopEdgeLine.getP1().getY() - startEdgeLine.getP1().getY()), stopEdgeLine.getP2().getX()
-            - startEdgeLine.getP2().getX() + Math.abs(stopEdgeLine.getP2().getY() - startEdgeLine.getP2().getY()));
+            + Math.abs(stopEdgeLine.getP1().getY() - startEdgeLine.getP1().getY()),
+        stopEdgeLine.getP2().getX() - startEdgeLine.getP2().getX()
+            + Math.abs(stopEdgeLine.getP2().getY() - startEdgeLine.getP2().getY()));
 
     if (maxScanLength < 0) {
       logger.warn("Should not happen: max scan length < 0");
@@ -632,8 +633,8 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
       codeString.setDetectionMethod(DETECTION_METHOD_DIRECT);
       codeStrings.add(codeString);
       if (logger.isDebugEnabled())
-        logger.debug("Method 1 detection: " + decodeCodeString(codeString) + " confidence="
-            + codeString.getConfidence() + (codeString.isChecksumVerificationOK() ? " OK" : ""));
+        logger.debug("Method 1 detection: " + decodeCodeString(codeString) + " confidence=" + codeString.getConfidence()
+            + (codeString.isChecksumVerificationOK() ? " OK" : ""));
     }
 
     // now process the aggregate scan
@@ -654,8 +655,8 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
       codeString.setDetectionMethod(DETECTION_METHOD_AGGREGATE);
       codeStrings.add(codeString);
       if (logger.isDebugEnabled())
-        logger.debug("Method 2 detection: " + decodeCodeString(codeString) + " confidence="
-            + codeString.getConfidence() + (codeString.isChecksumVerificationOK() ? " OK" : ""));
+        logger.debug("Method 2 detection: " + decodeCodeString(codeString) + " confidence=" + codeString.getConfidence()
+            + (codeString.isChecksumVerificationOK() ? " OK" : ""));
     }
 
     // find max confidence
@@ -691,8 +692,15 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
     // come up with the detection shape
     GeneralPath gp = getDetectionShape(edge);
 
-    return new Result(getSymbology(), gp, codeString, true, consolidatedCodeString.isChecksumVerificationOK(),
-        edge.getAngle());
+    Result result = null;
+    // no checksum required or checksum is ok
+    if (linearCodeSettings.isRequireValidChecksum() && !consolidatedCodeString.isChecksumVerificationOK())
+      logger.debug("Checksum required but not ok. Dismiss barcode " + codeString);
+    else
+      result = new Result(getSymbology(), gp, codeString, true, consolidatedCodeString.isChecksumVerificationOK(),
+          edge.getAngle());
+
+    return result;
   }
 
   /**
@@ -936,19 +944,17 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
     return scannedBars;
   }
 
-  protected final boolean barRatioOk(int a, int b, int ua, int ub, boolean includeOverprintTolerance, int barCountFactor) {
+  protected final boolean barRatioOk(int a, int b, int ua, int ub, boolean includeOverprintTolerance,
+      int barCountFactor) {
     float pixelsPerUnit = (float) (a + b) / (ua + ub);
     float expectedA = ((float) ua / ub) * b;
-    final float tolerance = barCountFactor
-        * pixelsPerUnit
-        * (linearCodeSettings.getBarWidthTolerance() + (includeOverprintTolerance
-            ? baseSettings.getOverprintTolerance()
-            : 0)) / 100f;
+    final float tolerance = barCountFactor * pixelsPerUnit * (linearCodeSettings.getBarWidthTolerance()
+        + (includeOverprintTolerance ? baseSettings.getOverprintTolerance() : 0)) / 100f;
     final boolean ok = Math.abs(a - expectedA) < tolerance;
 
     if (!ok && logger.isDebugEnabled())
-      logger.debug(a + "/" + b + " not within " + ua + "/" + ub + " +-" + linearCodeSettings.getBarWidthTolerance()
-          + "%");
+      logger.debug(
+          a + "/" + b + " not within " + ua + "/" + ub + " +-" + linearCodeSettings.getBarWidthTolerance() + "%");
 
     return ok;
   }

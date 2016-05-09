@@ -53,6 +53,7 @@ public class Code128Decoder extends OneDDecoder {
    * locations.
    */
   private static final int PATTERNS[] = {//
+      //@formatter:off
       // "            VALUE   CODE A  CODE B  CODE C"
       212222, // "0       SP      SP      0       "
       222122, // "1       !       !       1       "
@@ -160,8 +161,8 @@ public class Code128Decoder extends OneDDecoder {
       211412, // "103     START A                 "
       211214, // "104     START B                 "
       211232, // "105     START C                 "
-      2331112
-  // "106     STOP                    "
+      2331112 // "106     STOP     
+      //@formatter:on
   };
 
   /** The code table to decode code indices into characters. */
@@ -429,8 +430,6 @@ public class Code128Decoder extends OneDDecoder {
   protected CodeString decodeBarsToCodeString(int[] barWidths, int offset, int barCount, float overprintEstimate) {
     CodeString result = new CodeString();
     int confidence = 0;
-    int position = 0;
-    int checkSum = 0;
 
     // ok, can we see a start code right at the start?
     if (offset + geometry.startCodeWindowSize < barCount && detectStart(barWidths, offset, 0, 0, 0) != null) {
@@ -443,8 +442,6 @@ public class Code128Decoder extends OneDDecoder {
       if (null != s && s.value >= START_A && s.value <= START_C) {
         confidence++; // a start code is, well, a good start :-)
         result.add(s.value);
-        checkSum += s.value;
-        position++;
 
         offset += geometry.startCodeWindowSize;
 
@@ -461,19 +458,14 @@ public class Code128Decoder extends OneDDecoder {
               confidence++; // add extra boost for codes ending in STOP
               break;
             }
-
-            checkSum += s.value * position;
-            position++;
           }
           offset += geometry.dataCodeWindowSize;
         }
 
         // code holds the last code now. it should be the checksum.
-        final int csSymbol = result.getCodes()[position - 1];
-        checkSum -= csSymbol * (position - 1);
-        if (checkSum % 103 == csSymbol) {
+        Code128Settings settings = options.getSettings(Code128Settings.class);
+        if (settings.getChecksumVerifier().verifyChecksum(result)) {
           confidence += 5;
-          result.setChecksumVerificationOK(true);
         }
       }
     }
@@ -502,7 +494,8 @@ public class Code128Decoder extends OneDDecoder {
     if (!barRatioOk(barWidths[offset + 1], barWidths[offset + 5], 3, 1, true, 1))
       return null;
 
-    float overprintEstimate = estimateOverprint(barWidths, offset, geometry.stopCodeWindowSize, symbolByValue.get(STOP));
+    float overprintEstimate = estimateOverprint(barWidths, offset, geometry.stopCodeWindowSize,
+        symbolByValue.get(STOP));
 
     if (!within(overprintEstimate, 0f, baseSettings.getOverprintTolerance()))
       return null;

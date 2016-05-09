@@ -66,7 +66,7 @@ public class EANDecoder extends OneDDecoder {
       1010, // 7
       1001, // 8
       101
-  // 9
+      // 9
   };
 
   private static int PARITY_TABLE[] = new int[32];
@@ -142,23 +142,6 @@ public class EANDecoder extends OneDDecoder {
         decodedData.append(('?'));
 
     return decodedData.toString();
-  }
-
-  protected void verifyChecksum(CodeString codeString) {
-    codeString.setChecksumVerificationOK(false);
-    int[] codes = codeString.getCodes();
-    if (codes.length == 14) {
-      int sum = 0;
-      for (int i = 1; i < 14; i++) {
-        int code = codes[i];
-        if (code < 0 || code > 9)
-          return;
-        sum += code * ((i & 1) == 0 ? 3 : 1);
-      }
-
-      if ((sum % 10) == 0)
-        codeString.setChecksumVerificationOK(true);
-    }
   }
 
   /**
@@ -306,8 +289,8 @@ public class EANDecoder extends OneDDecoder {
     if (position == 13)
       confidence += 2;
 
-    verifyChecksum(result);
-    if (result.isChecksumVerificationOK())
+    EANSettings settings = options.getSettings(EANSettings.class);
+    if (settings.getChecksumVerifier().verifyChecksum(result))
       confidence += 10;
 
     result.setConfidence(confidence);

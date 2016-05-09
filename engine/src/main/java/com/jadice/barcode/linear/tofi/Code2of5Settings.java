@@ -20,15 +20,33 @@
 package com.jadice.barcode.linear.tofi;
 
 import com.jadice.barcode.Settings;
+import com.jadice.barcode.checksum.Checksum;
+import com.jadice.barcode.checksum.ChecksumVerifier;
 
-public class Code2of5Settings implements Settings {
+public class Code2of5Settings implements Settings, Checksum {
   private boolean enableChecksumVerification = false;
+  private ChecksumVerifier checksumVerifier = null;
 
+  @Override
   public boolean isEnableChecksumVerification() {
     return enableChecksumVerification;
   }
 
+  @Override
   public void setEnableChecksumVerification(boolean enableChecksumVerification) {
     this.enableChecksumVerification = enableChecksumVerification;
+  }
+
+  @Override
+  public void setChecksumVerifier(ChecksumVerifier checksumVerifier) {
+    this.checksumVerifier = checksumVerifier;
+  }
+
+  @Override
+  public ChecksumVerifier getChecksumVerifier() {
+    if (checksumVerifier == null) {
+      checksumVerifier = new TwoOfFiveChecksumVerifier();
+    }
+    return checksumVerifier;
   }
 }
