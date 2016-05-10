@@ -19,32 +19,65 @@
     Contact: solutions@levigo.de
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+	
 	<groupId>com.levigo.barcode</groupId>
-	<artifactId>build</artifactId>
+	<artifactId>jadice-barcode</artifactId>
 	<packaging>pom</packaging>
-	<version>2.0-SNAPSHOT</version>
+	<version>1.0.0-SNAPSHOT</version>
+	
+	<name>jadice-barcode</name>
+	<description>A multi-symbology barcode-scanning library.</description>
+	<url>https://github.com/levigo/jadice-barcode</url>
+	
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
 
 	<modules>
 		<module>engine</module>
 		<module>ui</module>
 	</modules>
 
-	<repositories>
+	<licenses>
+		<license>
+			<name>GPL v3</name>
+			<url>http://www.gnu.org/licenses/gpl.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	
+	<developers>
+		<developer>
+			<name>Jörg Henne</name>
+			<email>j.henne@levigo.de</email>
+		</developer>
+		<developer>
+			<name>Thomas Grammetbauer</name>
+			<email>t.grammetbauer@levigo.de</email>
+		</developer>
+	</developers>
+	
+	<distributionManagement>
+		<snapshotRepository>
+			<id>sonatype-nexus-snapshots</id>
+			<name>Sonatype Nexus Snapshot Repository</name>
+			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+		</snapshotRepository>
 		<repository>
-			<id>levigo</id>
-			<url>https://maven2.levigo.de/repo/</url>
-			<name>levigo releases</name>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
+			<id>sonatype-nexus-staging</id>
+			<name>Sonatype Nexus Release Staging Repository</name>
+			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 		</repository>
-	</repositories>
+	</distributionManagement>
+
+	<scm>
+    	<connection>scm:git:ssh://github.com/levigo/jadice-barcode</connection>
+		<developerConnection>scm:git:ssh://git@github.com:levigo/jadice-barcode.git</developerConnection>
+    	<url>https://github.com/levigo/jadice-barcode</url>
+    	<tag>HEAD</tag>
+	</scm>
 
 	<build>
 		<plugins>
@@ -70,6 +103,7 @@
 					<useDefaultExcludes>false</useDefaultExcludes>
 
 					<excludes>
+						<exclude>engine/target/surefire-reports/**</exclude>
 						<!-- LibDMTX-port comes with its own header -->
 						<exclude>engine/src/main/java/com/jadice/barcode/twod/dmtx/**</exclude>
 						<exclude>engine/src/main/java/com/levigo/barcode/twod/dmtx/**</exclude>
@@ -83,6 +117,7 @@
 						<year>${currentYear}</year>
 						<inceptionYear>1995</inceptionYear>
 					</properties>
+					<strictCheck>true</strictCheck>
 				</configuration>
 				<executions>
 					<execution>
@@ -94,6 +129,58 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+        		<artifactId>maven-release-plugin</artifactId>
+        		<version>2.4.2</version>
+        		<configuration>
+          			<autoVersionSubmodules>true</autoVersionSubmodules>
+          			<!-- Keep changes in the local repo, push will be done afterwards -->
+          			<pushChanges>false</pushChanges>
+          			<localCheckout>true</localCheckout>
+        		</configuration>
+        		<dependencies>
+          			<dependency>
+            			<groupId>org.apache.maven.scm</groupId>
+            			<artifactId>maven-scm-provider-gitexe</artifactId>
+            			<version>1.9</version>
+          			</dependency>
+        		</dependencies>
+      		</plugin>
 		</plugins>
 	</build>
+	
+	<profiles>
+		<profile>
+			<id>release-sign-artifacts</id>
+			<activation>
+				<property>
+					<name>performRelease</name>
+					<value>true</value>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>1.6</version>
+						<configuration>
+							<homedir>${levigo-jadice-barcode.gpg.homedir}</homedir>
+							<keyname>${levigo-jadice-barcode.gpg.keyname}</keyname>
+							<passphrase>${levigo-jadice-barcode.gpg.passphrase}</passphrase>
+						</configuration>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

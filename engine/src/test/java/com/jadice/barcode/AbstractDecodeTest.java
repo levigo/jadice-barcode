@@ -22,6 +22,7 @@ package com.jadice.barcode;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -29,11 +30,6 @@ import javax.imageio.ImageIO;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.jadice.barcode.BaseSettings;
-import com.jadice.barcode.Detector;
-import com.jadice.barcode.Options;
-import com.jadice.barcode.Result;
-import com.jadice.barcode.Symbology;
 import com.jadice.barcode.j2d.BufferedImageLuminanceSource;
 
 public abstract class AbstractDecodeTest {
@@ -93,6 +89,8 @@ public abstract class AbstractDecodeTest {
   protected abstract Symbology createSymbology();
 
   protected void initOptions(Options options) {
+    options.getSettings(BaseSettings.class).setThresholds(Arrays.asList(new Integer[]{50, 10, 25, 75}));
+    options.getSettings(BaseSettings.class).setBarcodeCountLimit(1);
     if (null != configurer)
       configurer.configure(options);
   }
