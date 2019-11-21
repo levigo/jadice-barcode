@@ -23,6 +23,7 @@ import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -52,6 +53,7 @@ public class Detector {
     // globally aggregated results go here
     List<Result> results = new ArrayList<Result>();
 
+    // detect binary grid based
     List<Integer> thresholds = options.getSettings(BaseSettings.class).getThresholds();
     int barcodeCountLimit = options.getSettings(BaseSettings.class).getBarcodeCountLimit();
     if (!thresholds.isEmpty()) {
@@ -64,16 +66,15 @@ public class Detector {
     } else {
       results.addAll(decodeAtThreshold(options, grid, BaseSettings.AUTO_THRESHOLD));
     }
+    
+    // detect luminance grid based
+    mergeNoDuplicates(decodeLuminanceBased(options, grid), results);
+    
     return results;
   }
 
   private static List<Result> decodeAtThreshold(final Options options, final Grid grid, final int threshold) {
     List<Result> results = new ArrayList<Result>();
-
-
-    LuminanceGrid lumGrid = null;
-    if (grid instanceof LuminanceGrid)
-      lumGrid = (LuminanceGrid) grid;
 
     BinaryGrid binaryGrid = grid instanceof BinaryGrid //
         ? ((BinaryGrid) grid) //
@@ -108,17 +109,42 @@ public class Detector {
           // won't happen.
         }
 
-    // iterate over source variations, then codes - first just the symbologies consuming binary
-    // pixels...
+    // iterate over source variations, then codes
     for (BinaryGrid src : binarySources)
       for (Decoder d : decoders)
-        if (d instanceof BinaryDecoder)
+        if (d instanceof BinaryDecoder) // luminance-based goes separate
           merge(((BinaryDecoder) d).detect(src), src.getInverseTransform(), results);
 
-    // ...then the luminance based ones
+    return results;
+  }
+
+  private static List<Result> decodeLuminanceBased(final Options options, final Grid grid) {
+    List<Result> results = new ArrayList<Result>();
+
+    if (!(grid instanceof LuminanceGrid))
+      return Collections.emptyList();
+
+    BaseSettings baseSettings = options.getSettings(BaseSettings.class);
+
+    // build list of codes to try
+    List<Decoder> decoders = new LinkedList<Decoder>();
+    for (Class<? extends Symbology> sc : baseSettings.getAvailableSymbologies())
+      if (baseSettings.isSymbologyEnabled(sc))
+        try {
+          final Symbology s = sc.newInstance();
+          if (s.canDecode()) {
+            Decoder decoder = s.createDecoder();
+            decoder.setOptions(options);
+            decoders.add(decoder);
+          }
+        } catch (Exception e) {
+          // won't happen.
+        }
+
+    // Detect luminance based
     for (Decoder d : decoders)
       if (d instanceof LuminanceDecoder)
-        merge(((LuminanceDecoder) d).detect(lumGrid), new AffineTransform(), results);
+        merge(((LuminanceDecoder) d).detect((LuminanceGrid) grid), new AffineTransform(), results);
 
     return results;
   }
