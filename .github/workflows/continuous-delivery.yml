@@ -43,6 +43,7 @@ jobs:
         export release_version=${project_version}.${{ steps.buildnumber.outputs.build_number }}
         echo Truncated version found to be ${project_version}, releasing as ${release_version}
         mvn versions:set -DnewVersion=${release_version} 
+        echo ::set-env name=RELEASE_VERSION::"${release_version}"
 
     - name: Perform build
       run: mvn -B package --file pom.xml
@@ -58,7 +59,7 @@ jobs:
         username: GitHub
         icon_emoji: octocat
         channel: 'ci-github-projekte'
-        text: Released new version ${release_version} of ${github.repository} to maven central
+        text: Released new version ${{ RELEASE_VERSION }} ${{ release_version }} of ${{ github.repository }} to maven central
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
