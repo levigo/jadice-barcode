@@ -23,7 +23,7 @@ jobs:
       with:
         username: GitHub
         icon_emoji: octocat
-        channel: '#ci-github-projekte'
+        channel: 'ci-github-projekte'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
