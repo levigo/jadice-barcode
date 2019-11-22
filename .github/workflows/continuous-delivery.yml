@@ -59,7 +59,7 @@ jobs:
         username: GitHub
         icon_emoji: octocat
         channel: 'ci-github-projekte'
-        text: Released new version ${{ release_version }} of ${{ github.repository }} to maven central
+        text: Released new version ${release_version} of ${{ github.repository }} to maven central
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
