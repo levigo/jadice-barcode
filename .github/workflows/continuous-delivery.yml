@@ -45,12 +45,29 @@ jobs:
         mvn versions:set -DnewVersion=${release_version} 
         echo ::set-env name=release_version::"${release_version}"
 
-    - name: Perform build
-      run: mvn -B package --file pom.xml
+    - name: Dump job context
+      env:
+        JOB_CONTEXT: ${{ toJson(job) }}
+      run: echo "$JOB_CONTEXT"
+    - name: Dump steps context
+      env:
+        STEPS_CONTEXT: ${{ toJson(steps) }}
+      run: echo "$STEPS_CONTEXT"
+    - name: Dump runner context
+      env:
+        RUNNER_CONTEXT: ${{ toJson(runner) }}
+      run: echo "$RUNNER_CONTEXT"
+    - name: Dump strategy context
+      env:
+        STRATEGY_CONTEXT: ${{ toJson(strategy) }}
+      run: echo "$STRATEGY_CONTEXT"
       
-    ## Deploy to maven central
-    - name: Deploy on maven central
-      run: mvn deploy --settings .maven.xml -DskipTests=true -B -U -Prelease
+#    - name: Perform build
+#      run: mvn -B package --file pom.xml
+#      
+#    ## Deploy to maven central
+#    - name: Deploy on maven central
+#      run: mvn deploy --settings .maven.xml -DskipTests=true -B -U -Prelease
 
     ## Notify Slack
     - name: Notify slack
