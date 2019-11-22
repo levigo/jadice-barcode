@@ -54,7 +54,10 @@ jobs:
     ## Deploy to maven central
     - name: Deploy on maven central
       run: mvn deploy --settings .maven.xml -DskipTests=true -B -U -Prelease
-
+      env:
+        # used in .maven.xml
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        
     ## Notify Slack
     - name: Notify slack
       uses: hennejg/slack-build-notifier@v1.1
