@@ -25,7 +25,7 @@
 	<groupId>com.levigo.barcode</groupId>
 	<artifactId>jadice-barcode</artifactId>
 	<packaging>pom</packaging>
-	<version>1.0.1-SNAPSHOT</version>
+	<version>1.1-SNAPSHOT</version>
 	
 	<name>jadice-barcode</name>
 	<description>A multi-symbology barcode-scanning library.</description>
