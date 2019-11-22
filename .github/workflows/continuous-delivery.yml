@@ -37,13 +37,15 @@ jobs:
 
     ## Build with maven
     - name: Set version
+      id: version
       if: github.ref == 'refs/heads/master'
       run: |
         export project_version=$(mvn help:evaluate -N -Dexpression=project.version | grep -v '\[' | tail -1 | sed -r -e 's/[-.](snapshot|local)$//i' -e 's/\s+//g')
         export release_version=${project_version}.${{ steps.buildnumber.outputs.build_number }}
         echo Truncated version found to be ${project_version}, releasing as ${release_version}
         mvn versions:set -DnewVersion=${release_version} 
-        echo ::set-env name=release_version::"${release_version}"
+        echo ::set-env name=release_version::${release_version}
+        echo ::set-output name=release_version::${release_version}
 
     - name: Dump job context
       env:
@@ -76,7 +78,7 @@ jobs:
         username: GitHub
         icon_emoji: octocat
         channel: 'ci-github-projekte'
-        text: Released new version ${release_version} of ${{ github.repository }} to maven central
+        text: Released new version ${{ steps.version.outputs.release_version }} ${{ env.release_version }} of ${{ github.repository }} to maven central
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
