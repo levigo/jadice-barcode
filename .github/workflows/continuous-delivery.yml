@@ -18,8 +18,6 @@ jobs:
       uses: einaregilsson/build-number@v1 
       with:
         token: ${{secrets.GITHUB_TOKEN}}
-    - name: Print new build number
-      run: echo Build number is $BUILD_NUMBER
 
     ## Enable Caching
     - uses: actions/cache@v1
@@ -35,6 +33,11 @@ jobs:
       with:
         java-version: 1.8
 
+    ## Prepare GPG keyring
+    - name: Prepare GPG
+      run: |
+        echo ${{ secrets.GPG_KEYS }} | base64 --decode | gpg --import
+        
     ## Build with maven
     - name: Set version
       id: version
