@@ -3,3 +3,4 @@ com.jadice.barcode.linear.c39.Code39
 com.jadice.barcode.linear.ean.EAN
 com.jadice.barcode.linear.tofi.TwoOfFiveInterleaved
 com.jadice.barcode.twod.dmtx.Datamatrix
+com.jadice.barcode.twod.dmtx_zxing.ZXingDatamatrix
