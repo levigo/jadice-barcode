@@ -23,6 +23,7 @@ import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -48,10 +49,11 @@ public class Detector {
    * @param grid
    * @return
    */
-  public static List<Result> decode(Options options, Grid grid) {
+  public static List<Result> decode(final Options options, final Grid grid) {
     // globally aggregated results go here
     List<Result> results = new ArrayList<Result>();
 
+    // detect binary grid based
     List<Integer> thresholds = options.getSettings(BaseSettings.class).getThresholds();
     int barcodeCountLimit = options.getSettings(BaseSettings.class).getBarcodeCountLimit();
     if (!thresholds.isEmpty()) {
@@ -64,16 +66,15 @@ public class Detector {
     } else {
       results.addAll(decodeAtThreshold(options, grid, BaseSettings.AUTO_THRESHOLD));
     }
+    
+    // detect luminance grid based
+    mergeNoDuplicates(decodeLuminanceBased(options, grid), results);
+    
     return results;
   }
 
-  private static List<Result> decodeAtThreshold(Options options, Grid grid, int threshold) {
+  private static List<Result> decodeAtThreshold(final Options options, final Grid grid, final int threshold) {
     List<Result> results = new ArrayList<Result>();
-
-
-    LuminanceGrid lumGrid = null;
-    if (grid instanceof LuminanceGrid)
-      lumGrid = (LuminanceGrid) grid;
 
     BinaryGrid binaryGrid = grid instanceof BinaryGrid //
         ? ((BinaryGrid) grid) //
@@ -111,10 +112,39 @@ public class Detector {
     // iterate over source variations, then codes
     for (BinaryGrid src : binarySources)
       for (Decoder d : decoders)
-        if (d instanceof BinaryDecoder)
+        if (d instanceof BinaryDecoder) // luminance-based goes separate
           merge(((BinaryDecoder) d).detect(src), src.getInverseTransform(), results);
-        else if (d instanceof LuminanceDecoder)
-          merge(((LuminanceDecoder) d).detect(lumGrid), src.getInverseTransform(), results);
+
+    return results;
+  }
+
+  private static List<Result> decodeLuminanceBased(final Options options, final Grid grid) {
+    List<Result> results = new ArrayList<Result>();
+
+    if (!(grid instanceof LuminanceGrid))
+      return Collections.emptyList();
+
+    BaseSettings baseSettings = options.getSettings(BaseSettings.class);
+
+    // build list of codes to try
+    List<Decoder> decoders = new LinkedList<Decoder>();
+    for (Class<? extends Symbology> sc : baseSettings.getAvailableSymbologies())
+      if (baseSettings.isSymbologyEnabled(sc))
+        try {
+          final Symbology s = sc.newInstance();
+          if (s.canDecode()) {
+            Decoder decoder = s.createDecoder();
+            decoder.setOptions(options);
+            decoders.add(decoder);
+          }
+        } catch (Exception e) {
+          // won't happen.
+        }
+
+    // Detect luminance based
+    for (Decoder d : decoders)
+      if (d instanceof LuminanceDecoder)
+        merge(((LuminanceDecoder) d).detect((LuminanceGrid) grid), new AffineTransform(), results);
 
     return results;
   }
@@ -122,8 +152,8 @@ public class Detector {
   /**
    * Returns the binary sources for all active directions.
    */
-  private static List<BinaryGrid> getBinarySourcesForActiveDirections(BinaryGrid binaryGrid,
-      LinearCodeSettings linearCodeSettings) {
+  private static List<BinaryGrid> getBinarySourcesForActiveDirections(final BinaryGrid binaryGrid,
+      final LinearCodeSettings linearCodeSettings) {
     List<BinaryGrid> binarySources = new LinkedList<BinaryGrid>();
     for (Direction d : Direction.values()) {
       if (linearCodeSettings.isDirectionEnabled(d))
@@ -138,7 +168,8 @@ public class Detector {
    * @param transform
    * @param r
    */
-  private static void merge(Collection<Result> src, AffineTransform transform, Collection<Result> dst) {
+  private static void merge(final Collection<Result> src, final AffineTransform transform,
+      final Collection<Result> dst) {
     for (final Result c : src) {
       c.transform(transform);
       dst.add(c);
@@ -148,7 +179,7 @@ public class Detector {
   /**
    * Merge another list of results, excluding any duplicates.
    */
-  private static void mergeNoDuplicates(Collection<Result> src, Collection<Result> dst) {
+  private static void mergeNoDuplicates(final Collection<Result> src, final Collection<Result> dst) {
     for (final Result s : src) {
       boolean duplicate = false;
       for (final Result d : dst) {
@@ -164,7 +195,7 @@ public class Detector {
     }
   }
 
-  public static BinaryGrid prepareBinaryGrid(Options options, Grid grid, int threshold) {
+  public static BinaryGrid prepareBinaryGrid(final Options options, final Grid grid, final int threshold) {
     BinaryGrid binaryGrid;
 
     if (grid instanceof BinaryGrid)
