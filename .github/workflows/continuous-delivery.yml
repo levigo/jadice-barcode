@@ -35,8 +35,7 @@ jobs:
 
     ## Prepare GPG keyring
     - name: Prepare GPG
-      run: |
-        echo ${{ secrets.GPG_KEYS }} | base64 --decode | gpg --import
+      run: echo '${{ secrets.GPG_KEYS }}' | base64 --decode | gpg --import
         
     ## Build with maven
     - name: Set version
