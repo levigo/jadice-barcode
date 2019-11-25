@@ -36,6 +36,7 @@ jobs:
     ## Prepare GPG keyring
     - name: Prepare GPG
       run: |
+        export GPG_TTY=$(tty)
         echo '${{ secrets.GPG_KEYS }}' | base64 --decode | gpg --import
         echo "# List of assigned trustvalues, created Mo, 25. Nov 2019 12:03:02" | gpg --import-ownertrust
         gpg --list-keys
