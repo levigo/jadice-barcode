@@ -36,9 +36,9 @@ jobs:
     ## Prepare GPG keyring
     - name: Prepare GPG
       run: |
-        export GPG_TTY=$(tty)
-        echo '${{ secrets.GPG_KEYS }}' | base64 --decode | gpg --batch --import
-        echo "# List of assigned trustvalues, created Mo, 25. Nov 2019 12:03:02" | gpg --import-ownertrust
+        export GPG_TTY=$(tty) # needed to successfully run gpg-agent within the container
+        echo '${{ secrets.GPG_KEYS }}' | gpg --batch --import
+        # echo "# List of assigned trustvalues, created Mo, 25. Nov 2019 12:03:02" | gpg --import-ownertrust
         gpg --list-keys
         
     ## Build with maven
@@ -57,7 +57,9 @@ jobs:
       
     ## Deploy to maven central
     - name: Deploy on maven central
-      run: mvn deploy --settings .maven.xml -DskipTests=true -B -U -Prelease
+      run: |
+        export GPG_TTY=$(tty) # needed to successfully run gpg-agent within the container
+        mvn deploy --settings .maven.xml -DskipTests=true -B -U -Prelease
       env:
         # used in .maven.xml
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
