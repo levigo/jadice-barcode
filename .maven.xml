@@ -40,6 +40,7 @@
       <properties>
         <gpg.executable>gpg</gpg.executable>
         <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
+        <gpg.keyname>levigo (levigo solutions gmbh) &lt;noreply@levigo.de&gt;</gpg.keyname>
       </properties>
     </profile>
   </profiles>
