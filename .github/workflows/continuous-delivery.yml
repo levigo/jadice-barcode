@@ -35,7 +35,11 @@ jobs:
 
     ## Prepare GPG keyring
     - name: Prepare GPG
-      run: echo '${{ secrets.GPG_KEYS }}' | base64 --decode | gpg --import
+      run: |
+        # try to get GPG 2.1 to use the old format
+        touch ~/.gnupg/pubring.gpg
+        touch ~/.gnupg/secring.gpg
+        echo '${{ secrets.GPG_KEYS }}' | base64 --decode | gpg --import
         
     ## Build with maven
     - name: Set version
