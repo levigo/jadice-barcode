@@ -161,7 +161,7 @@
             </configuration>
           </plugin>
 
-          <!-- To generate javadoc -->
+          <!-- add sources -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
@@ -176,6 +176,7 @@
             </executions>
           </plugin>
 
+          <!-- To generate javadoc -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
@@ -186,11 +187,15 @@
                 <goals>
                   <goal>jar</goal>
                 </goals>
+                <!-- no doclint -->
+                <configuration>
+                  <additionalparam>-Xdoclint:none</additionalparam>
+                </configuration>
               </execution>
             </executions>
           </plugin>
 
-          <!-- To sign the artifacts -->
+          <!-- sign artifacts -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
