@@ -37,6 +37,7 @@ jobs:
     - name: Prepare GPG
       run: |
         # try to get GPG 2.1 to use the old format
+        mkdir -p ~/.gnupg
         touch ~/.gnupg/pubring.gpg
         touch ~/.gnupg/secring.gpg
         echo '${{ secrets.GPG_KEYS }}' | base64 --decode | gpg --import
