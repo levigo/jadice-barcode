@@ -93,7 +93,7 @@ public class EANDecoder extends OneDDecoder {
       while (divident > 0) {
         int bit = pattern / divident % 10;
         if (bit < 0 || bit > 1)
-          logger.fatal("Illegal parity pattern while building table " + pattern);
+          logger.error("Illegal parity pattern while building table " + pattern);
         else {
           entry <<= 1;
           entry |= bit;
