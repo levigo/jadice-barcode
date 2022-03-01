@@ -30,7 +30,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jadice.barcode.AbstractDecoder;
 import com.jadice.barcode.BaseSettings;
@@ -111,8 +112,8 @@ public abstract class OneDDecoder extends AbstractDecoder implements BinaryDecod
 
   protected static final int DETECTION_METHOD_DIRECT = 1;
 
-  /** The Log4J logger to use */
-  protected static Logger logger = Logger.getLogger(OneDDecoder.class);
+  /** The Log4J 2 logger to use */
+  protected static Logger logger = LoggerFactory.getLogger(OneDDecoder.class);
 
   protected static final boolean within(float value, float expected, int tolerancePercent) {
     return Math.abs(value - expected) < tolerancePercent / 100f;

@@ -26,7 +26,8 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jadice.barcode.DiagnosticSettings;
 import com.jadice.barcode.Marker;
@@ -39,7 +40,7 @@ import com.jadice.barcode.linear.OneDDecoder.EdgeDetection;
  * A start of stop edge of a linear (1D) bar code.
  */
 public class Edge {
-  private static final Logger logger = Logger.getLogger(Edge.class);
+  private static final Logger logger = LoggerFactory.getLogger(Edge.class);
 
   private static final int MIN_HITS_THRESHOLD = 3;
   private static final double MAX_ANGULAR_MISMATCH = 10.0; // degrees
