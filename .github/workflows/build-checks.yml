@@ -7,13 +7,12 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up JDK 1.8
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '8'
@@ -21,14 +20,14 @@ jobs:
     - name: Build with Maven
       run: mvn -B package --file pom.xml
 
-    ## Notify Slack
-    - name: Notify slack
-      uses: hennejg/slack-build-notifier@v1.1
+    - name: Notify Developers
+      uses: 8398a7/action-slack@v3.18.0
       with:
         username: GitHub
         icon_emoji: octocat
-        channel: 'ci_project'
+        channel: ci_project
+        status: ${{ job.status }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       if: always()
